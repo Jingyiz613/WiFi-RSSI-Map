@@ -1,0 +1,11 @@
+{
+  "kind": "idw",
+  "room": {
+    "width_m": 8.23,
+    "height_m": 6.95,
+    "rows": 7,
+    "columns": 9
+  },
+  "test_used_for_hyperparameter_selection": false,
+  "note": "P74 was a validation group in earlier experiments; this is an exploratory re-split, not a new blind test."
+}

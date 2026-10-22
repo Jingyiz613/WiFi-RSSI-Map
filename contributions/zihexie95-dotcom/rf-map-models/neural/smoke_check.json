@@ -1,0 +1,5 @@
+{
+  "hidden_label_invariance": "PASS",
+  "fixed_case_initial_mse": 0.6649012565612793,
+  "fixed_case_final_mse": 0.24039705097675323
+}

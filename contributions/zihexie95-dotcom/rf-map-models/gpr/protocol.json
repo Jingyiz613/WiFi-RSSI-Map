@@ -1,0 +1,58 @@
+{
+  "split": {
+    "train": [
+      "P16",
+      "P22",
+      "P28",
+      "P44",
+      "P64",
+      "P68"
+    ],
+    "validation": [
+      "P62"
+    ],
+    "test": [
+      "P74"
+    ]
+  },
+  "input_budgets": [
+    6,
+    12,
+    24
+  ],
+  "input_distributions": [
+    "uniform",
+    "clustered"
+  ],
+  "nu": [
+    1.5,
+    2.5
+  ],
+  "length_m": [
+    0.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "signal_db": [
+    3.0,
+    6.0,
+    10.0
+  ],
+  "noise_db": [
+    0.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "shortlist_per_nu": 3,
+  "protocol_locked_before_test_prediction": true,
+  "test_status": "P74 was a validation group in earlier experiments; this is an exploratory re-split, not a new blind test.",
+  "mean": "scene intercept from provided observations only; pathloss trend fitted on 6 training groups",
+  "pathloss_min_distance_m": 0.5,
+  "selection": "96 kernels per GPR family scored by training REML; top3 per nu evaluated on validation; choose lowest hidden-point validation RMSE",
+  "excluded_groups": [
+    "P26",
+    "P49"
+  ]
+}

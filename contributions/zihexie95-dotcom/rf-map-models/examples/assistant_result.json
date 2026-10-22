@@ -1,0 +1,473 @@
+{
+  "model": "pathloss_gpr",
+  "ap": "P74",
+  "observed_count": 12,
+  "grades": "experiment-relative thresholds: -40/-35/-30/-25 dBm",
+  "map": [
+    {
+      "point_id": "P11",
+      "source": "predicted",
+      "rssi_dbm": -36.38130734341887,
+      "relative_grade": "较差",
+      "prediction_sd_db": 5.212613622252442
+    },
+    {
+      "point_id": "P12",
+      "source": "predicted",
+      "rssi_dbm": -36.1474175833002,
+      "relative_grade": "较差",
+      "prediction_sd_db": 5.068657926582928
+    },
+    {
+      "point_id": "P13",
+      "source": "predicted",
+      "rssi_dbm": -36.13450021721726,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.856609599715799
+    },
+    {
+      "point_id": "P14",
+      "source": "observed",
+      "rssi_dbm": -38.0,
+      "relative_grade": "较差",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P15",
+      "source": "predicted",
+      "rssi_dbm": -36.47253745015601,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.750551283606979
+    },
+    {
+      "point_id": "P16",
+      "source": "predicted",
+      "rssi_dbm": -36.6770310052093,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.814857342143001
+    },
+    {
+      "point_id": "P17",
+      "source": "predicted",
+      "rssi_dbm": -36.90287133067038,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.778517019035239
+    },
+    {
+      "point_id": "P18",
+      "source": "observed",
+      "rssi_dbm": -37.0,
+      "relative_grade": "较差",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P19",
+      "source": "predicted",
+      "rssi_dbm": -37.519396736958896,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.903147842308852
+    },
+    {
+      "point_id": "P21",
+      "source": "predicted",
+      "rssi_dbm": -35.2207179055728,
+      "relative_grade": "较差",
+      "prediction_sd_db": 5.179619009402299
+    },
+    {
+      "point_id": "P22",
+      "source": "predicted",
+      "rssi_dbm": -34.777405870768554,
+      "relative_grade": "一般",
+      "prediction_sd_db": 5.022659443258097
+    },
+    {
+      "point_id": "P23",
+      "source": "predicted",
+      "rssi_dbm": -34.59460954505214,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.8011676968252655
+    },
+    {
+      "point_id": "P24",
+      "source": "predicted",
+      "rssi_dbm": -34.78156750937816,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.635507479504143
+    },
+    {
+      "point_id": "P25",
+      "source": "predicted",
+      "rssi_dbm": -35.298760638837095,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.630844897429688
+    },
+    {
+      "point_id": "P26",
+      "source": "predicted",
+      "rssi_dbm": -35.868829359679516,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.6700201877661
+    },
+    {
+      "point_id": "P27",
+      "source": "predicted",
+      "rssi_dbm": -36.26623226197566,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.7129018405304945
+    },
+    {
+      "point_id": "P28",
+      "source": "predicted",
+      "rssi_dbm": -36.55279779537356,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.777867977474589
+    },
+    {
+      "point_id": "P29",
+      "source": "predicted",
+      "rssi_dbm": -36.89443869766931,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.920661980497526
+    },
+    {
+      "point_id": "P31",
+      "source": "predicted",
+      "rssi_dbm": -33.97134403138447,
+      "relative_grade": "一般",
+      "prediction_sd_db": 5.141876877713379
+    },
+    {
+      "point_id": "P32",
+      "source": "predicted",
+      "rssi_dbm": -33.25395114018922,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.986601580907107
+    },
+    {
+      "point_id": "P33",
+      "source": "predicted",
+      "rssi_dbm": -32.85739417271043,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.774106193770418
+    },
+    {
+      "point_id": "P34",
+      "source": "observed",
+      "rssi_dbm": -30.5,
+      "relative_grade": "一般",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P35",
+      "source": "predicted",
+      "rssi_dbm": -34.064067057382246,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.533524469538981
+    },
+    {
+      "point_id": "P36",
+      "source": "observed",
+      "rssi_dbm": -35.0,
+      "relative_grade": "一般",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P37",
+      "source": "predicted",
+      "rssi_dbm": -35.63469844487895,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.6526379740365895
+    },
+    {
+      "point_id": "P38",
+      "source": "predicted",
+      "rssi_dbm": -35.88578071755979,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.801445667471685
+    },
+    {
+      "point_id": "P39",
+      "source": "predicted",
+      "rssi_dbm": -36.206204831605156,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.92168691592022
+    },
+    {
+      "point_id": "P41",
+      "source": "predicted",
+      "rssi_dbm": -32.696112277063385,
+      "relative_grade": "一般",
+      "prediction_sd_db": 5.068812354956033
+    },
+    {
+      "point_id": "P42",
+      "source": "predicted",
+      "rssi_dbm": -31.630162278281887,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.916444687444701
+    },
+    {
+      "point_id": "P43",
+      "source": "predicted",
+      "rssi_dbm": -30.965949740216303,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.7640678602787165
+    },
+    {
+      "point_id": "P44",
+      "source": "predicted",
+      "rssi_dbm": -31.220649997803438,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.641319028372991
+    },
+    {
+      "point_id": "P45",
+      "source": "predicted",
+      "rssi_dbm": -32.47608416350657,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.553089271414039
+    },
+    {
+      "point_id": "P46",
+      "source": "observed",
+      "rssi_dbm": -39.0,
+      "relative_grade": "较差",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P47",
+      "source": "predicted",
+      "rssi_dbm": -34.54403245585341,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.625517327712861
+    },
+    {
+      "point_id": "P48",
+      "source": "predicted",
+      "rssi_dbm": -34.85883371227197,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.724579194601884
+    },
+    {
+      "point_id": "P49",
+      "source": "predicted",
+      "rssi_dbm": -35.282489796120416,
+      "relative_grade": "较差",
+      "prediction_sd_db": 4.7838518655779
+    },
+    {
+      "point_id": "P51",
+      "source": "predicted",
+      "rssi_dbm": -31.416736106182604,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.940862995736625
+    },
+    {
+      "point_id": "P52",
+      "source": "predicted",
+      "rssi_dbm": -29.735097945260968,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.747272611950882
+    },
+    {
+      "point_id": "P53",
+      "source": "predicted",
+      "rssi_dbm": -28.289277544436914,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.6489932482617835
+    },
+    {
+      "point_id": "P54",
+      "source": "predicted",
+      "rssi_dbm": -28.080071480192064,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.612466299322767
+    },
+    {
+      "point_id": "P55",
+      "source": "predicted",
+      "rssi_dbm": -29.502047114395857,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.570336610720784
+    },
+    {
+      "point_id": "P56",
+      "source": "predicted",
+      "rssi_dbm": -31.3086330581668,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.58014110526662
+    },
+    {
+      "point_id": "P57",
+      "source": "predicted",
+      "rssi_dbm": -32.505899709204954,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.636756166537887
+    },
+    {
+      "point_id": "P58",
+      "source": "predicted",
+      "rssi_dbm": -33.264381207987,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.618505900237978
+    },
+    {
+      "point_id": "P59",
+      "source": "observed",
+      "rssi_dbm": -35.0,
+      "relative_grade": "一般",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P61",
+      "source": "predicted",
+      "rssi_dbm": -30.256259194405825,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.860938091338346
+    },
+    {
+      "point_id": "P62",
+      "source": "observed",
+      "rssi_dbm": -29.0,
+      "relative_grade": "较好",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P63",
+      "source": "observed",
+      "rssi_dbm": -23.0,
+      "relative_grade": "极好",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P64",
+      "source": "predicted",
+      "rssi_dbm": -21.936422551922625,
+      "relative_grade": "极好",
+      "prediction_sd_db": 4.519243754531657
+    },
+    {
+      "point_id": "P65",
+      "source": "observed",
+      "rssi_dbm": -30.5,
+      "relative_grade": "一般",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P66",
+      "source": "predicted",
+      "rssi_dbm": -27.816757397579405,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.548945675846749
+    },
+    {
+      "point_id": "P67",
+      "source": "predicted",
+      "rssi_dbm": -30.07114116472642,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.600810648603733
+    },
+    {
+      "point_id": "P68",
+      "source": "predicted",
+      "rssi_dbm": -31.571232213580565,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.586052623519587
+    },
+    {
+      "point_id": "P69",
+      "source": "observed",
+      "rssi_dbm": -30.0,
+      "relative_grade": "较好",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P71",
+      "source": "predicted",
+      "rssi_dbm": -29.619873181997654,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.96694181279666
+    },
+    {
+      "point_id": "P72",
+      "source": "predicted",
+      "rssi_dbm": -26.296077407012216,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.785971107668755
+    },
+    {
+      "point_id": "P73",
+      "source": "predicted",
+      "rssi_dbm": -20.58754785637358,
+      "relative_grade": "极好",
+      "prediction_sd_db": 4.688423121252009
+    },
+    {
+      "point_id": "P74",
+      "source": "ap",
+      "rssi_dbm": null,
+      "relative_grade": null,
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P75",
+      "source": "observed",
+      "rssi_dbm": -12.0,
+      "relative_grade": "极好",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P76",
+      "source": "predicted",
+      "rssi_dbm": -25.24424547000201,
+      "relative_grade": "较好",
+      "prediction_sd_db": 4.565409378844529
+    },
+    {
+      "point_id": "P77",
+      "source": "observed",
+      "rssi_dbm": -28.0,
+      "relative_grade": "较好",
+      "prediction_sd_db": null
+    },
+    {
+      "point_id": "P78",
+      "source": "predicted",
+      "rssi_dbm": -30.687709190826293,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.684620478372477
+    },
+    {
+      "point_id": "P79",
+      "source": "predicted",
+      "rssi_dbm": -32.38661548763818,
+      "relative_grade": "一般",
+      "prediction_sd_db": 4.784765559663555
+    }
+  ],
+  "suggested_measurements": [
+    {
+      "point_id": "P11",
+      "x_m": 0.45722222222222225,
+      "y_m": 0.49642857142857144,
+      "conditional_prediction_sd_db": 5.212613622252442,
+      "reason": "maximum remaining conditional GP variance"
+    },
+    {
+      "point_id": "P41",
+      "x_m": 0.45722222222222225,
+      "y_m": 3.475,
+      "conditional_prediction_sd_db": 4.998499137809688,
+      "reason": "maximum remaining conditional GP variance"
+    },
+    {
+      "point_id": "P71",
+      "x_m": 0.45722222222222225,
+      "y_m": 6.453571428571429,
+      "conditional_prediction_sd_db": 4.9210281518030055,
+      "reason": "maximum remaining conditional GP variance"
+    }
+  ],
+  "limitation": "Model-based planning only; field benefit and uncertainty calibration not independently validated."
+}

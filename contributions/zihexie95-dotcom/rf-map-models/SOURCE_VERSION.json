@@ -1,0 +1,12 @@
+{
+  "contributor": "zihexie95-dotcom",
+  "source_commit": "3cc21bf17e07334c259bf693cc776da94a3789bc",
+  "data_credit": "由项目团队共同采集与整理",
+  "excluded_from_copy": [
+    "Git state",
+    "publication helpers",
+    "raw archives",
+    "private device identifiers"
+  ],
+  "protocol": "clean8: 6 train / P62 validation / P74 exploratory test; separate from root experiments"
+}
