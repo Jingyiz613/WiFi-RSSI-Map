@@ -1,0 +1,7 @@
+{
+  "best_epoch": 16,
+  "validation_rmse_db": 5.844351643301717,
+  "before_training_validation_rmse_db": 7.665590953655461,
+  "checkpoint_reload_verified": true,
+  "test_evaluated": false
+}

@@ -1,0 +1,36 @@
+{
+  "model": "IDW_residual_SmallUNet",
+  "mean_dbm": -34.14285659790039,
+  "scale_db": 6.359060287475586,
+  "rows": 7,
+  "columns": 9,
+  "input_channels": [
+    "normalized_sparse_rssi",
+    "observed_mask",
+    "room_mask",
+    "input_only_idw"
+  ],
+  "input_points": 20,
+  "train_scenes": [
+    "P16",
+    "P22",
+    "P28",
+    "P44",
+    "P62",
+    "P68"
+  ],
+  "validation_scene": "P64",
+  "seed": 2026,
+  "epochs": 300,
+  "steps_per_epoch": 10,
+  "learning_rate": 0.0003,
+  "source_sha256": "95493a5a9f8dea420a7220f927962d1d9fad5c72a072027862770486e0ceb190",
+  "torch_version": "2.11.0+cu128",
+  "device": "cuda",
+  "test_evaluated": false,
+  "weight_decay": 0.01,
+  "residual_penalty": 0.05,
+  "max_epochs": 250,
+  "patience": 40,
+  "validation_inputs_source": "C:\\Users\\98734\\Desktop\\WiFi\u70ed\u529b\u751f\u6210\u56fe\\output\\unet_runs\\20261021_134356_519488\\validation_inputs.json"
+}

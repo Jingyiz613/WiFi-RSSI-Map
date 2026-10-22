@@ -1,0 +1,96 @@
+{
+  "metrics": [
+    {
+      "scene": "P49",
+      "method": "idw",
+      "mae_db": 2.891566058567592,
+      "rmse_db": 3.772811915045154,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P49",
+      "method": "unet",
+      "mae_db": 4.4732591356549944,
+      "rmse_db": 5.593561517953263,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P49",
+      "method": "residual_unet",
+      "mae_db": 2.891590654282343,
+      "rmse_db": 3.772771824544391,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P49",
+      "method": "autoencoder",
+      "mae_db": 4.18967272894723,
+      "rmse_db": 5.49258706003303,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "idw",
+      "mae_db": 3.2133964175269716,
+      "rmse_db": 4.129840725998575,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "unet",
+      "mae_db": 4.838572960808164,
+      "rmse_db": 5.928996470984575,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "residual_unet",
+      "mae_db": 3.2137258348010835,
+      "rmse_db": 4.13008624326071,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "autoencoder",
+      "mae_db": 4.639747106461298,
+      "rmse_db": 5.866039757601619,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "combined",
+      "method": "idw",
+      "mae_db": 3.052481238047282,
+      "rmse_db": 3.9553567581460407,
+      "scored_predictions": 840
+    },
+    {
+      "scene": "combined",
+      "method": "unet",
+      "mae_db": 4.655916048231579,
+      "rmse_db": 5.7637197020706665,
+      "scored_predictions": 840
+    },
+    {
+      "scene": "combined",
+      "method": "residual_unet",
+      "mae_db": 3.052658244541713,
+      "rmse_db": 3.955465814341427,
+      "scored_predictions": 840
+    },
+    {
+      "scene": "combined",
+      "method": "autoencoder",
+      "mae_db": 4.414709917704264,
+      "rmse_db": 5.682382205105758,
+      "scored_predictions": 840
+    }
+  ],
+  "training_performed": false,
+  "P74_in_models": false,
+  "limitations": [
+    "Only two deployments in the same room.",
+    "Repeated input selections are not independent deployments.",
+    "Test acquisition method differs from training.",
+    "Any changes based on this result require a fresh test for independent assessment."
+  ]
+}

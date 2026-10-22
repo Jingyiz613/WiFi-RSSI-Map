@@ -1,0 +1,10 @@
+﻿scene_id,ap_point,split,usable_points,source_points,grid_points,sampling_method,source_file,source_sha256,room_width_m,room_height_m,ap_height_m,receiver_height_m
+AP_P22,P22,train,62,62,63,wifi_endpoint_polling,output/rss_62_fast/20261017_230005_388558/rss_summary_20261017_230005.csv,56b75c928e80e18fcb578e53596a3254fdc23d7e3a5979671c1cbfc69d672f2e,8.23,6.95,,
+AP_P68,P68,train,62,62,63,wifi_endpoint_polling,output/rss_archive/AP_P68_20261018_222855/rss_summary_20261018_222855.csv,8e2f33f6c4edd3eb445036738dbc6ba9002d4adca3d05bb4a66a338d173a07bb,8.23,6.95,,
+AP_P64,P64,validation,62,62,63,wifi_endpoint_polling,output/rss_archive/AP_P64_20261019_191158/rss_summary_20261019_191158.csv,454b6b9d19f2cc4d316b1584eb734e5d2f5b0b5fe633d3e6eb7169f7a6895993,8.23,6.95,,
+AP_P44,P44,train,62,62,63,wifi_endpoint_polling,output/AP_P44_complete_20261019/rss_summary_merged.csv,8b275c4a0206cd7cc1e9a89582ea67b369a0ac4212bbb88b09b8d48b00ca6959,8.23,6.95,,
+AP_P28,P28,train,62,62,63,wifi_endpoint_polling,output/rss_archive/AP_P28_20261019_211310/AP_P28/20261019_211310_077486/rss_summary_20261019_211310.csv,cb5fb672344d1677702cdaf09691fff372dbc425469deb240ac675d3580f3a82,8.23,6.95,,
+AP_P62,P62,train,61,62,63,wifi_endpoint_polling,output/rss_archive/AP_P62_reported_20261019_pending_confirmation/WiFi_RSS_raw_data_20261019/rss_summary_merged.csv,801ef9b6cf1c837af0d060f21a4b680ebf5d990ca4dadd15f1e46033797e86f8,8.23,6.95,,
+AP_P16,P16,train,62,62,63,wifi_endpoint_polling,output/rss_archive/AP_P16_20261020_112049/AP_P16/20261020_112049_088838/rss_summary_20261020_112049.csv,3a65d7c8e1ba7bc001a680ffa821deee365ac8b25251975cf83eedf4407e9d45,8.23,6.95,,
+AP_P49,P49,test,62,62,63,packet_rssi_npz_features,output/rss_archive/AP_P49_20261020_195100/整理数据/points_features.csv,97ab9c54033633b72d6742d6dc6242cb8655326e806f2dbb7294c50e42faae48,8.23,6.95,,
+AP_P26,P26,test,62,62,63,packet_rssi_npz_features,output/rss_archive/AP_P26_20261020_202128/整理数据/points_features.csv,c65762bc8ad1aa44ba7d24f040cbbf9dbee52131bf84a97927756088e316b5fd,8.23,6.95,,

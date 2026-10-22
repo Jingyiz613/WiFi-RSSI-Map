@@ -1,0 +1,5 @@
+﻿scene_id,point_id,status,note
+AP_P62,P11,trial_substitute_unverified,P11试测替代值仅留痕，不作为正式测量；无试测原始记录。
+AP_P62,P21,partial_measured,保留已有有效读数，缺失次数不补值；中位数由已有读数确定。
+AP_P62,P22,partial_measured,保留已有有效读数，缺失次数不补值；中位数由已有读数确定。
+AP_P62,P62,ap_occupied_record_excluded,路由器占用点的原始记录保留，但从建模数据排除。

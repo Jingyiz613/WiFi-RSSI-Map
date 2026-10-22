@@ -1,0 +1,24 @@
+{
+  "best_epoch": 25,
+  "epochs_completed": 65,
+  "idw_rmse_db": 5.58056192590148,
+  "residual_rmse_db": 5.428021137799342,
+  "residual_mae_db": 4.105901813765058,
+  "idw_mae_db": 4.165092581216186,
+  "checkpoint_reload_verified": true,
+  "test_evaluated": false,
+  "note": "P64 reused for model selection. Improvement here is not an independent test result.",
+  "version": "v2_P74_added",
+  "train_scenes": [
+    "P16",
+    "P22",
+    "P28",
+    "P44",
+    "P62",
+    "P68",
+    "P74"
+  ],
+  "training_points": 433,
+  "v1_residual_rmse_db": 5.5804394795399,
+  "rmse_change_v2_minus_v1_db": -0.15241834174055846
+}

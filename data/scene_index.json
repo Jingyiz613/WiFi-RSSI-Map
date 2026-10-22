@@ -1,0 +1,52 @@
+{
+  "P16": {
+    "role": "train",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P22": {
+    "role": "train",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P28": {
+    "role": "train",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P44": {
+    "role": "train",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P62": {
+    "role": "train",
+    "usable_points": 61,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P68": {
+    "role": "train",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P74": {
+    "role": "train",
+    "usable_points": 62,
+    "data_file": "output/rss_archive/AP_P74_20261021_140830/WiFi_RSS_P74_20261021/rss_summary_20261021_140830.csv"
+  },
+  "P64": {
+    "role": "validation",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P49": {
+    "role": "reused_test",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  },
+  "P26": {
+    "role": "reused_test",
+    "usable_points": 62,
+    "data_file": "output/training_tables_v1/training_points.csv"
+  }
+}

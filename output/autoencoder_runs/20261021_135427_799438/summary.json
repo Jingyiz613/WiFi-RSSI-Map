@@ -1,0 +1,11 @@
+{
+  "model": "CompletionAutoencoder",
+  "best_epoch": 35,
+  "epochs_completed": 85,
+  "validation_rmse_db": 5.890510683705885,
+  "validation_mae_db": 4.634626402790559,
+  "initial_validation_rmse_db": 7.418926229968733,
+  "checkpoint_reload_verified": true,
+  "test_evaluated": false,
+  "note": "P64 is used repeatedly for model selection; not an independent final score."
+}

@@ -1,0 +1,139 @@
+{
+  "best_epoch": 24,
+  "epochs_completed": 64,
+  "classification_model": {
+    "accuracy": 0.4261904761904762,
+    "macro_f1_5_classes": 0.3409984812846287,
+    "within_one_grade_accuracy": 0.7238095238095238,
+    "mean_grade_error": 0.8833333333333333,
+    "severe_error_rate": 0.2761904761904762,
+    "confusion_matrix": [
+      [
+        0,
+        2,
+        19,
+        5,
+        0
+      ],
+      [
+        0,
+        22,
+        15,
+        7,
+        1
+      ],
+      [
+        2,
+        50,
+        85,
+        13,
+        8
+      ],
+      [
+        0,
+        42,
+        27,
+        26,
+        17
+      ],
+      [
+        0,
+        8,
+        24,
+        1,
+        46
+      ]
+    ],
+    "support": [
+      26,
+      45,
+      158,
+      112,
+      79
+    ],
+    "recall_per_class": [
+      0.0,
+      0.4888888888888889,
+      0.5379746835443038,
+      0.23214285714285715,
+      0.5822784810126582
+    ],
+    "f1_per_class": [
+      0.0,
+      0.2603550295857988,
+      0.5182926829268293,
+      0.3170731707317073,
+      0.609271523178808
+    ],
+    "note": "Macro-F1 includes all five fixed classes; absent classes score zero."
+  },
+  "idw_binned_baseline": {
+    "accuracy": 0.42142857142857143,
+    "macro_f1_5_classes": 0.25045337527273887,
+    "within_one_grade_accuracy": 0.8761904761904762,
+    "mean_grade_error": 0.7047619047619048,
+    "severe_error_rate": 0.12380952380952381,
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        25,
+        1,
+        0
+      ],
+      [
+        0,
+        2,
+        38,
+        5,
+        0
+      ],
+      [
+        0,
+        17,
+        117,
+        24,
+        0
+      ],
+      [
+        0,
+        3,
+        58,
+        47,
+        4
+      ],
+      [
+        0,
+        0,
+        18,
+        50,
+        11
+      ]
+    ],
+    "support": [
+      26,
+      45,
+      158,
+      112,
+      79
+    ],
+    "recall_per_class": [
+      0.0,
+      0.044444444444444446,
+      0.740506329113924,
+      0.41964285714285715,
+      0.13924050632911392
+    ],
+    "f1_per_class": [
+      0.0,
+      0.05970149253731343,
+      0.5652173913043478,
+      0.39330543933054396,
+      0.23404255319148937
+    ],
+    "note": "Macro-F1 includes all five fixed classes; absent classes score zero."
+  },
+  "test_evaluated": false,
+  "checkpoint_reload_verified": true,
+  "interpretation": "P64 reused for model selection. No independent new test."
+}

@@ -1,0 +1,76 @@
+{
+  "metrics": [
+    {
+      "scene": "P49",
+      "method": "idw",
+      "mae_db": 2.891566058567592,
+      "rmse_db": 3.772811915045154,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P49",
+      "method": "residual_v1",
+      "mae_db": 2.891590654282343,
+      "rmse_db": 3.772771824544391,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P49",
+      "method": "residual_v2",
+      "mae_db": 3.120434347788493,
+      "rmse_db": 4.05084091420612,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "idw",
+      "mae_db": 3.2133964175269716,
+      "rmse_db": 4.129840725998575,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "residual_v1",
+      "mae_db": 3.2137258348010835,
+      "rmse_db": 4.13008624326071,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "P26",
+      "method": "residual_v2",
+      "mae_db": 3.620457885378883,
+      "rmse_db": 4.568556284961513,
+      "scored_predictions": 420
+    },
+    {
+      "scene": "combined",
+      "method": "idw",
+      "mae_db": 3.052481238047282,
+      "rmse_db": 3.9553567581460407,
+      "scored_predictions": 840
+    },
+    {
+      "scene": "combined",
+      "method": "residual_v1",
+      "mae_db": 3.052658244541713,
+      "rmse_db": 3.955465814341427,
+      "scored_predictions": 840
+    },
+    {
+      "scene": "combined",
+      "method": "residual_v2",
+      "mae_db": 3.370446116583688,
+      "rmse_db": 4.3174656131269655,
+      "scored_predictions": 840
+    }
+  ],
+  "training_performed": false,
+  "P74_in_models": true,
+  "evaluation_type": "reused_test_comparison_limited_independence",
+  "limitations": [
+    "Only two deployments in the same room.",
+    "Repeated input selections are not independent deployments.",
+    "Test acquisition method differs from training.",
+    "Any changes based on this result require a fresh test for independent assessment."
+  ]
+}

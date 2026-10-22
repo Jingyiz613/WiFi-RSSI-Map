@@ -1,0 +1,11 @@
+{
+  "best_epoch": 1,
+  "epochs_completed": 41,
+  "idw_rmse_db": 5.58056192590148,
+  "residual_rmse_db": 5.5804394795399,
+  "residual_mae_db": 4.165041033200168,
+  "idw_mae_db": 4.165092581216186,
+  "checkpoint_reload_verified": true,
+  "test_evaluated": false,
+  "note": "P64 reused for model selection. Improvement here is not an independent test result."
+}
