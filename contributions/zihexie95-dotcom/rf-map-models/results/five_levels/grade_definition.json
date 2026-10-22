@@ -1,0 +1,55 @@
+{
+  "kind": "user-approved relative grades for this experiment; not a universal Wi-Fi quality standard",
+  "grades": [
+    {
+      "label": "极差",
+      "class_index": 0,
+      "colour": "#d9544d",
+      "interval": "极差：< −40"
+    },
+    {
+      "label": "较差",
+      "class_index": 1,
+      "colour": "#f29b4b",
+      "interval": "较差：−40 ≤ RSSI < −35"
+    },
+    {
+      "label": "一般",
+      "class_index": 2,
+      "colour": "#f1d057",
+      "interval": "一般：−35 ≤ RSSI < −30"
+    },
+    {
+      "label": "较好",
+      "class_index": 3,
+      "colour": "#91cf72",
+      "interval": "较好：−30 ≤ RSSI < −25"
+    },
+    {
+      "label": "极好",
+      "class_index": 4,
+      "colour": "#39aa6b",
+      "interval": "极好：≥ −25"
+    }
+  ],
+  "cutpoints_dbm": [
+    -40.0,
+    -35.0,
+    -30.0,
+    -25.0
+  ],
+  "boundary_rule": "left inclusive: -40 belongs to 较差; -35 一般; -30 较好; -25 极好",
+  "model_source": ".",
+  "test_group": "P74",
+  "demo_task_index": 80,
+  "demo_budget": 12,
+  "demo_repeat": 0,
+  "evaluation": "hidden measured points only; input values copied for display; AP/missing excluded",
+  "selected_predictor": "pathloss_gpr selected previously by validation; no retraining or selection based on grade metrics",
+  "source_sha256": {
+    "neural\\data\\maps.npz": "baa94387515aba747afaf1e49c455f411140034d2576b4a53c63ce2cfade956e",
+    "neural\\data\\evaluation_masks.npz": "2b8e67637275a2b811d986e6bafa72df20472d9b618fb402a61dc5d043901093",
+    "gpr\\predictions.npz": "a3e21a8e5a255dfd64c2d33b6a6e28d7be31899a9307f14253a2ff97ca615ac5",
+    "neural\\predictions.npz": "06071c6633bac41519675603f0382834514ae6b954b7fa62cd3fd56fc3df0f31"
+  }
+}

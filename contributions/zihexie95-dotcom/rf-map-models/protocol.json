@@ -1,0 +1,32 @@
+{
+  "split": {
+    "train": [
+      "P16",
+      "P22",
+      "P28",
+      "P44",
+      "P64",
+      "P68"
+    ],
+    "validation": [
+      "P62"
+    ],
+    "test": [
+      "P74"
+    ]
+  },
+  "excluded_groups": [
+    "P26",
+    "P49"
+  ],
+  "excluded_archives": [
+    "长方形房（演示房间）_62-62_20261020_195100_仅本轮.zip",
+    "长方形房（演示房间）_62-62_20261020_202128_仅本轮(1).zip"
+  ],
+  "maps": 8,
+  "targets": 495,
+  "test_status": "P74 was a validation group in earlier experiments; this is an exploratory re-split, not a new blind test.",
+  "warning": "Do not compare new P74 errors with old P49 errors as a causal effect of removing data.",
+  "source_maps_sha256": "a7493c1b0f17b53650592f4f0bdf5410ca1040cd612037a18c0fee0b3a80971b",
+  "architectures_hyperparameter_grid_and_seeds": "unchanged; all learned parameters refitted without excluded groups"
+}

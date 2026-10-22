@@ -1,0 +1,21 @@
+{
+  "kind": "gpr",
+  "kernel": {
+    "nu": 2.5,
+    "length_m": 4.0,
+    "signal_db": 6.0,
+    "noise_db": 4.0
+  },
+  "pathloss_coefficients": [
+    -24.1166483008905,
+    -17.436122389899
+  ],
+  "room": {
+    "width_m": 8.23,
+    "height_m": 6.95,
+    "rows": 7,
+    "columns": 9
+  },
+  "test_used_for_hyperparameter_selection": false,
+  "note": "P74 was a validation group in earlier experiments; this is an exploratory re-split, not a new blind test."
+}

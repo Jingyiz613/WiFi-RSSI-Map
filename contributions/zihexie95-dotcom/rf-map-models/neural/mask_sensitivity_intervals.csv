@@ -1,0 +1,7 @@
+﻿budget,distribution,model,mean_per_mask_rmse_improvement_db,mask_bootstrap_95_low_db,mask_bootstrap_95_high_db,scope
+6,uniform,unet,-0.3142863084697088,-0.5822632298950686,-0.006292066091522965,fixed P74 map and these 10 masks only; no independent-scene confidence claim
+6,clustered,unet,0.14893169658741093,-0.33370757419158076,0.6780070851861292,fixed P74 map and these 10 masks only; no independent-scene confidence claim
+12,uniform,unet,-0.7006849101921037,-0.9488270236936753,-0.4416658767145114,fixed P74 map and these 10 masks only; no independent-scene confidence claim
+12,clustered,unet,0.14539207736021603,-0.39999122325122355,0.7594447363419682,fixed P74 map and these 10 masks only; no independent-scene confidence claim
+24,uniform,unet,-1.155903335748751,-1.274525080025745,-1.0060903166740813,fixed P74 map and these 10 masks only; no independent-scene confidence claim
+24,clustered,unet,-0.25531627294889303,-0.4964547548718032,0.029463378882889288,fixed P74 map and these 10 masks only; no independent-scene confidence claim
