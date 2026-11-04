@@ -1,0 +1,22 @@
+# 运行时产物
+__pycache__/
+*.py[cod]
+.venv/
+runtime/
+.pytest_cache/
+
+# 采集结果与备份
+output/
+backup/
+
+# 编译中间产物（firmware/bin 里的成品要保留）
+firmware/build/
+
+# 本机房间布局与预览图
+layout.json
+route_preview.png
+route_preview.json
+
+# 系统文件
+Thumbs.db
+desktop.ini
