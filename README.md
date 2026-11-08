@@ -107,6 +107,12 @@ python -m venv .venv
 
 每次训练写入新时间戳目录。报告/绘图/比较脚本默认引用本仓库保存的那次历史运行；要评价新权重，需要更新模型路径，不能把默认报告当新模型结果。
 
+## 3D 布局编辑器
+
+[`3d-layout-editor/`](3d-layout-editor/) 是一个本地运行的 3D 房间沙盘：可以拖动家具、从家具库添加家具、调整路由器位置，并导出与原采集系统兼容的 `layout.json`，适合在采集前核对家具布局。
+
+双击 `3d-layout-editor/start.bat`，或在仓库根目录运行 `python 3d-layout-editor/server.py`，浏览器会自动打开。详细说明见 [`3d-layout-editor/README.md`](3d-layout-editor/README.md)。
+
 ## 重要限制
 
 - P49/P26已重复使用，目前仅为固定前后对照，独立性有限；P64也反复用于模型选择，不是新独立测试。

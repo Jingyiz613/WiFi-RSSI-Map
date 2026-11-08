@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>miniAuto · 3D 布局编辑</title>
+<link rel="stylesheet" href="./style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="labels"></div>
+
+  <header id="topbar">
+    <div class="brand">
+      <div class="logo"><i></i><i></i><i></i><i></i></div>
+      <div class="brand-text">
+        <h1>miniAuto · 3D 布局编辑</h1>
+        <p>拖动家具，摆好房间</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <label class="select-wrap">
+        <span class="select-label">布局</span>
+        <select id="layoutSelect" aria-label="选择布局文件"></select>
+      </label>
+      <button id="btnSave" class="primary" title="保存到 layout.edited.json（Ctrl+S）">保存</button>
+      <button id="btnUndo" class="ghost" title="撤销（Ctrl+Z）">撤销</button>
+      <button id="btnShot" class="ghost" title="保存当前视角为 PNG">截图</button>
+      <button id="btnFull" class="ghost" title="全屏（F）">全屏</button>
+    </div>
+  </header>
+
+  <aside id="sidebar">
+    <section>
+      <h2>视角</h2>
+      <div class="view-grid" id="viewGrid">
+        <button data-view="iso" class="active">等轴测</button>
+        <button data-view="top">俯视</button>
+        <button data-view="corner">近景</button>
+        <button data-view="front">正视</button>
+      </div>
+      <button id="btnOrbit" class="wide ghost" title="空格键切换">自动环绕</button>
+    </section>
+
+    <section>
+      <h2>编辑</h2>
+      <label class="switch"><input type="checkbox" id="tgSnap" checked /><span>5 cm 网格吸附</span></label>
+      <p class="tip">拖动家具移动；按住 <kbd>Alt</kbd> 自由微调；删除请用右侧家具库底部按钮。</p>
+      <button id="btnDownload" class="wide ghost">下载当前布局 JSON</button>
+    </section>
+
+    <section>
+      <h2>图层</h2>
+      <label class="switch"><input type="checkbox" id="tgGrid" checked /><span>地面网格</span></label>
+      <label class="switch"><input type="checkbox" id="tgBlocked" checked /><span>禁行格</span></label>
+      <label class="switch"><input type="checkbox" id="tgLabels" checked /><span>名称标签</span></label>
+      <label class="switch"><input type="checkbox" id="tgWalls" checked /><span>房间墙体</span></label>
+    </section>
+
+    <section class="legend">
+      <h2>图例</h2>
+      <div><i class="sw sw-ap"></i>路由器</div>
+      <div><i class="sw sw-blocked"></i>家具 / 禁行格</div>
+      <p class="tip">禁行格按家具外扩 10 cm 安全间距计算。</p>
+    </section>
+  </aside>
+
+  <aside id="library">
+    <div class="lib-head">
+      <h2>家具库</h2>
+      <span>点一下添加</span>
+    </div>
+    <div class="lib-list" id="libList"></div>
+    <div class="lib-foot">
+      <button id="btnDelete" class="danger" disabled>删除选中家具</button>
+    </div>
+  </aside>
+
+  <div id="hud" class="panel"></div>
+
+  <div id="hint">拖动家具移动 · 拖动路由器换位 · Delete 删除 · Alt 自由微调</div>
+
+  <div id="tooltip"></div>
+  <div id="notice" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <span>正在构建立体房间…</span>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
