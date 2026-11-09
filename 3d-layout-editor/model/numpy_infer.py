@@ -150,16 +150,12 @@ def read_points(path: Path) -> list[dict]:
     return observed
 
 
-def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", choices=MODELS, default="empty")
-    parser.add_argument("--input", required=True)
-    args = parser.parse_args()
-
-    observed = read_points(Path(args.input))
-    config, weights = load_checkpoint(HERE / MODELS[args.model])
+def predict(environment: str, input_path) -> dict:
+    """Run the model in-process and return the JSON-ready payload."""
+    if environment not in MODELS:
+        raise ValueError(f"未知模型：{environment}")
+    observed = read_points(Path(input_path))
+    config, weights = load_checkpoint(HERE / MODELS[environment])
     x = build_input(observed, config["mean_dbm"], config["scale_db"])
     logits = forward(x, weights)[0]
     shifted = logits - logits.max(axis=0, keepdims=True)
@@ -169,8 +165,8 @@ def main() -> int:
     confidence = probs.max(axis=0)
     counts = np.bincount(classes.ravel(), minlength=5).tolist()
 
-    payload = {
-        "environment": args.model,
+    return {
+        "environment": environment,
         "labels": LABELS,
         "grid": {"nx": NX, "ny": NY, "width_m": W, "height_m": H},
         "classes": classes.tolist(),
@@ -183,6 +179,17 @@ def main() -> int:
         "engine": "numpy",
         "note": "64×76 五档分类由训练好的模型权重输出；示例输入为模拟值，非实测标定。",
     }
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", choices=MODELS, default="empty")
+    parser.add_argument("--input", required=True)
+    args = parser.parse_args()
+
+    payload = predict(args.model, args.input)
     print(json.dumps(payload, ensure_ascii=False))
     return 0
 

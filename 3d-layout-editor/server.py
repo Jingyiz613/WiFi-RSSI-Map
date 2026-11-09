@@ -26,11 +26,26 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-ROOT = Path(__file__).resolve().parent
-CORE = ROOT / "core"
-WEB = ROOT / "web"
+def _resolve_dirs() -> tuple[Path, Path]:
+    """Return (writable app dir, read-only bundle dir).
+
+    When frozen by PyInstaller the bundled resources live in sys._MEIPASS while
+    user data (saved layouts) must sit next to the executable.
+    """
+    if getattr(sys, "frozen", False):
+        app_dir = Path(sys.executable).resolve().parent
+        bundle = Path(getattr(sys, "_MEIPASS", app_dir))
+    else:
+        app_dir = Path(__file__).resolve().parent
+        bundle = app_dir
+    return app_dir, bundle
+
+
+ROOT, BUNDLE = _resolve_dirs()
+CORE = BUNDLE / "core"
+WEB = BUNDLE / "web"
 DATA = ROOT / "data"
-MODEL_DIR = ROOT / "model"
+MODEL_DIR = BUNDLE / "model"
 sys.path.insert(0, str(CORE))
 
 from layout import Layout  # noqa: E402
@@ -390,6 +405,7 @@ def _read_example_ids() -> list[str]:
 
 
 _MODEL_PYTHON = None
+_MODEL_MODULE = None
 
 
 def _model_python() -> list[str]:
@@ -415,6 +431,19 @@ def _model_python() -> list[str]:
             continue
     _MODEL_PYTHON = [sys.executable]
     return _MODEL_PYTHON
+
+
+def _predict_inprocess(environment: str, input_path: Path) -> dict:
+    """Load the NumPy model inside this process (the only option once frozen)."""
+    global _MODEL_MODULE
+    if _MODEL_MODULE is None:
+        model_path = str(MODEL_DIR)
+        if model_path not in sys.path:
+            sys.path.insert(0, model_path)
+        import numpy_infer  # noqa: PLC0415
+
+        _MODEL_MODULE = numpy_infer
+    return _MODEL_MODULE.predict(environment, input_path)
 
 
 def predict_layout(payload: dict) -> dict:
@@ -453,20 +482,25 @@ def predict_layout(payload: dict) -> dict:
             handle.close()
             input_path = Path(temp_path)
 
-        command = _model_python() + [
-            str(MODEL_DIR / "numpy_infer.py"),
-            "--model",
-            environment,
-            "--input",
-            str(input_path),
-        ]
-        proc = subprocess.run(
-            command, capture_output=True, text=True, encoding="utf-8", timeout=120
-        )
-        if proc.returncode != 0:
-            detail = (proc.stderr or proc.stdout or "").strip()[-600:]
-            raise RuntimeError(detail or f"模型进程退出码 {proc.returncode}")
-        return json.loads(proc.stdout)
+        try:
+            return _predict_inprocess(environment, input_path)
+        except Exception as exc:  # fall back to an external interpreter when available
+            if getattr(sys, "frozen", False):
+                raise RuntimeError(f"模型推理失败：{exc}") from exc
+            command = _model_python() + [
+                str(MODEL_DIR / "numpy_infer.py"),
+                "--model",
+                environment,
+                "--input",
+                str(input_path),
+            ]
+            proc = subprocess.run(
+                command, capture_output=True, text=True, encoding="utf-8", timeout=120
+            )
+            if proc.returncode != 0:
+                detail = (proc.stderr or proc.stdout or "").strip()[-600:]
+                raise RuntimeError(detail or f"模型进程退出码 {proc.returncode}")
+            return json.loads(proc.stdout)
     finally:
         if temp_path:
             try:
@@ -642,20 +676,45 @@ class Handler(SimpleHTTPRequestHandler):
             self._json({"error": f"保存失败：{exc}"}, 500)
 
 
-def pick_port(start: int = 8765, tries: int = 40) -> int:
+def pick_port(start: int = 8765, tries: int = 40, host: str = "127.0.0.1") -> int:
     for port in range(start, start + tries):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
-                sock.bind(("127.0.0.1", port))
+                sock.bind((host or "127.0.0.1", port))
                 return port
             except OSError:
                 continue
     raise SystemExit("没有可用端口，请用 --port 指定。")
 
 
+def lan_address() -> str:
+    """Best-effort LAN IPv4 of this machine (no traffic is sent)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+
+
+def ensure_data_dir() -> None:
+    """Create the writable data folder and seed bundled layouts on first run."""
+    DATA.mkdir(parents=True, exist_ok=True)
+    bundled = BUNDLE / "data"
+    if bundled.is_dir() and bundled.resolve() != DATA.resolve():
+        for src in bundled.glob("*.json"):
+            dst = DATA / src.name
+            if not dst.exists():
+                try:
+                    shutil.copy2(src, dst)
+                except OSError:
+                    pass
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="miniAuto 3D 布局编辑器")
     parser.add_argument("--port", type=int, default=0, help="固定端口，0 表示自动选择")
+    parser.add_argument("--host", default="127.0.0.1", help="监听地址，0.0.0.0 表示允许局域网访问")
     parser.add_argument("--layout", default="layout.json", help="默认加载的布局文件")
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
     args = parser.parse_args()
@@ -665,15 +724,21 @@ def main() -> None:
     except Exception:
         pass
 
-    port = args.port or pick_port()
+    host = args.host or "127.0.0.1"
+    shared = host in ("0.0.0.0", "::", "")
+    ensure_data_dir()
+    port = args.port or pick_port(host=host)
     handler = partial(Handler, directory=str(WEB))
-    server = ThreadingHTTPServer(("127.0.0.1", port), handler)
+    server = ThreadingHTTPServer((host, port), handler)
     url = f"http://127.0.0.1:{port}/?layout={args.layout}"
 
     print("=" * 60)
     print("  miniAuto Wi-Fi 采集系统 · 3D 布局编辑器")
     print("=" * 60)
     print(f"  地址：{url}")
+    if shared:
+        print(f"  共享：http://{lan_address()}:{port}/?layout={args.layout}")
+        print("        （同一局域网/Wi-Fi 的同伴用这个地址；首次会弹防火墙提示，请允许）")
     print(f"  数据：{DATA}")
     print("  操作：拖动家具移动，Alt 自由移动，Ctrl+Z 撤销")
     print("  关闭：Ctrl+C 或直接关掉这个窗口")

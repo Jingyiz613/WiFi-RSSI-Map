@@ -4,12 +4,12 @@ chcp 65001 >nul
 cd /d "%~dp0"
 
 set "PY="
-py -3 -c "import sys" >nul 2>nul && set "PY=py -3"
+if exist "%~dp0..\runtime\python\python.exe" set "PY=%~dp0..\runtime\python\python.exe"
 if not defined PY (
-  python -c "import sys" >nul 2>nul && set "PY=python"
+  py -3 -c "import sys" >nul 2>nul && set "PY=py -3"
 )
 if not defined PY (
-  if exist "%~dp0..\runtime\python\python.exe" set "PY=%~dp0..\runtime\python\python.exe"
+  python -c "import sys" >nul 2>nul && set "PY=python"
 )
 if not defined PY (
   echo.
