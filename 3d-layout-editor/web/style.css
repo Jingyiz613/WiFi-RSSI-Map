@@ -473,6 +473,39 @@ button.wide { width: 100%; margin-top: 7px; }
 }
 .lib-head span { font-size: 9.5px; color: rgba(142, 163, 191, 0.72); white-space: nowrap; }
 
+.lib-material {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 8px;
+  font-size: 9.5px;
+  color: var(--muted);
+}
+.lib-material label {
+  flex: none;
+  white-space: nowrap;
+}
+.lib-material select {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 4px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 9.5px;
+}
+.lib-material select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.lib-material select option {
+  background: #101a2a;
+  color: var(--text);
+}
+
 .lib-list {
   flex: 1 1 auto;
   min-height: 0;

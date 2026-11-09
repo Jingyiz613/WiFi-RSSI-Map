@@ -304,16 +304,23 @@ async function loadMaterials() {
         )
         .join('');
     }
-    const select = $('propMaterial');
-    if (select) {
-      select.innerHTML =
+    const entries = Object.entries(data.materials);
+    const prop = $('propMaterial');
+    if (prop) {
+      prop.innerHTML =
         '<option value="">自动（按家具类型）</option>' +
-        Object.entries(data.materials)
+        entries
           .map(
             ([key, m]) =>
               `<option value="${key}">${m.label} · ${m.loss['2.4g'].toFixed(0)}/${m.loss['5g'].toFixed(0)} dB</option>`
           )
           .join('');
+    }
+    const lib = $('libMaterial');
+    if (lib) {
+      lib.innerHTML =
+        '<option value="">自动</option>' +
+        entries.map(([key, m]) => `<option value="${key}">${m.label}</option>`).join('');
     }
   } catch (error) {
     console.warn('材料表加载失败', error);
@@ -327,6 +334,7 @@ function renderProperties(item) {
     section.classList.add('hidden');
     return;
   }
+  const wasHidden = section.classList.contains('hidden');
   section.classList.remove('hidden');
   const nameEl = $('propName');
   if (nameEl) nameEl.textContent = item.name;
@@ -338,9 +346,13 @@ function renderProperties(item) {
   if (select) select.value = item.material || '';
   const tip = $('propTip');
   if (tip) {
-    tip.textContent = item.material
-      ? `按「${materialData?.[item.material]?.label || item.material}」计算穿透损耗`
+    const m = item.material ? materialData?.[item.material] : null;
+    tip.textContent = m
+      ? `按「${m.label}」：2.4G ${m.loss['2.4g'].toFixed(0)} dB / 5G ${m.loss['5g'].toFixed(0)} dB`
       : '自动模式：按家具类型推断材料';
+  }
+  if (wasHidden) {
+    requestAnimationFrame(() => section.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   }
 }
 
@@ -541,14 +553,16 @@ function renderLibrary() {
 async function addFromLibrary(spec) {
   if (!sceneRoot) return;
   const before = sceneRoot.snapshot();
-  const { item } = sceneRoot.addFurniture(spec);
+  const material = $('libMaterial')?.value || '';
+  const { item } = sceneRoot.addFurniture({ ...spec, material });
   history.push(before);
   if (history.length > 50) history.shift();
   selectedItem = item;
   updateDeleteButton(item);
   renderProperties(item);
   await reanalyze();
-  toast(`已添加「${item.name}」，拖动它摆位置`);
+  const label = material ? materialData?.[material]?.label || material : '自动';
+  toast(`已添加「${item.name}」（${label}），拖动它摆位置`);
 }
 
 async function save() {
