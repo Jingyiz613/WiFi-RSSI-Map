@@ -38,6 +38,12 @@ from route_planner import PlanError, make_serpentine_plan  # noqa: E402
 
 # 家具名 -> (几何类型, 默认高度 m)。布局文件里没有高度字段，这里按名称给合理默认值。
 KIND_TABLE = (
+    (("砖墙240", "砖墙 240", "brick_240"), "brick_240", 2.2),
+    (("砖墙120", "砖墙 120", "brick_120"), "brick_120", 2.2),
+    (("木门", "wood door", "wood_door"), "wood_door", 2.1),
+    (("玻璃窗", "window", "glass_window"), "glass_window", 1.2),
+    (("混凝土", "concrete"), "concrete", 2.2),
+    (("金属板", "metal panel", "metal_panel"), "metal_panel", 2.0),
     (("床头柜", "nightstand"), "nightstand", 0.55),
     (("边几", "side_table", "side table"), "side_table", 0.55),
     (("沙发", "sofa", "couch"), "sofa", 0.86),
@@ -155,34 +161,61 @@ def overlap_problems(layout: Layout) -> list[str]:
 # 参数来自资料包的华为典型障碍衰减与 ITU 材料先验，只用于展示相对变化，
 # 不是本房间的实测标定值。
 
-FREQ_MHZ = 2437.0
+BANDS = {
+    "2.4g": {"label": "2.4 GHz", "freq_mhz": 2437.0},
+    "5g": {"label": "5 GHz", "freq_mhz": 5180.0},
+}
+DEFAULT_BAND = "2.4g"
+
+# 典型障碍物衰减（dB），来自团队资料表；只用于展示相对变化，不是本房间实测标定。
+MATERIALS = {
+    "synthetic": {"label": "合成材料", "thickness_mm": 20, "loss": {"2.4g": 2.0, "5g": 3.0}},
+    "asbestos": {"label": "石棉", "thickness_mm": 8, "loss": {"2.4g": 3.0, "5g": 4.0}},
+    "wood_door": {"label": "木门", "thickness_mm": 40, "loss": {"2.4g": 3.0, "5g": 4.0}},
+    "glass_window": {"label": "玻璃窗", "thickness_mm": 50, "loss": {"2.4g": 4.0, "5g": 7.0}},
+    "tinted_glass": {"label": "有色厚玻璃", "thickness_mm": 80, "loss": {"2.4g": 8.0, "5g": 10.0}},
+    "brick_120": {"label": "砖墙 120mm", "thickness_mm": 120, "loss": {"2.4g": 10.0, "5g": 20.0}},
+    "brick_240": {"label": "砖墙 240mm", "thickness_mm": 240, "loss": {"2.4g": 15.0, "5g": 25.0}},
+    "bulletproof_glass": {"label": "防弹玻璃", "thickness_mm": 120, "loss": {"2.4g": 25.0, "5g": 35.0}},
+    "concrete": {"label": "混凝土", "thickness_mm": 240, "loss": {"2.4g": 25.0, "5g": 30.0}},
+    "metal": {"label": "金属", "thickness_mm": 80, "loss": {"2.4g": 30.0, "5g": 35.0}},
+}
+
+KIND_MATERIAL = {
+    "sofa": "synthetic",
+    "bed": "synthetic",
+    "cabinet": "synthetic",
+    "nightstand": "synthetic",
+    "side_table": "synthetic",
+    "desk": "synthetic",
+    "table": "synthetic",
+    "chair": "synthetic",
+    "coffee_table": "synthetic",
+    "tv": "tinted_glass",
+    "tv_stand": "synthetic",
+    "fridge": "metal",
+    "washer": "metal",
+    "plant": "synthetic",
+    "rug": "synthetic",
+    "aircon": "synthetic",
+    "box": "synthetic",
+    "brick_120": "brick_120",
+    "brick_240": "brick_240",
+    "wood_door": "wood_door",
+    "glass_window": "glass_window",
+    "concrete": "concrete",
+    "metal_panel": "metal",
+}
+
+# 家电是薄壳金属/玻璃，不能按 80mm 实心金属算
+MATERIAL_SCALE = {"fridge": 0.35, "washer": 0.3, "tv": 0.5, "aircon": 0.3}
+
 TX_EIRP_DBM = 22.0
 CLUTTER_DB = 6.0
 AP_HEIGHT_M = 1.0
 RX_HEIGHT_M = 0.9
 QUALITY_THRESHOLDS = (-40.0, -35.0, -30.0, -25.0)
 QUALITY_LABELS = ("弱", "偏弱", "中", "好", "强")
-
-# 家具穿透基准损耗（dB），再按高度做折减；木头/板材参考 ITU，金属家电取高值
-PENETRATION_DB = {
-    "sofa": 5.0,
-    "bed": 6.0,
-    "cabinet": 7.0,
-    "nightstand": 3.0,
-    "side_table": 2.0,
-    "desk": 3.5,
-    "table": 3.5,
-    "chair": 2.5,
-    "coffee_table": 2.0,
-    "tv": 8.0,
-    "tv_stand": 4.0,
-    "fridge": 10.0,
-    "washer": 8.0,
-    "plant": 1.5,
-    "rug": 0.0,
-    "aircon": 6.0,
-    "box": 4.0,
-}
 
 
 def _segment_hits_rect(x1, y1, x2, y2, xmin, ymin, xmax, ymax) -> bool:
@@ -209,16 +242,20 @@ def _segment_hits_rect(x1, y1, x2, y2, xmin, ymin, xmax, ymax) -> bool:
     return u1 <= u2
 
 
-def _active_loss(item, kind: str) -> float:
-    base = PENETRATION_DB.get(kind, 4.0)
+def _material_loss(item, kind: str, band: str) -> tuple[float, str]:
+    material = KIND_MATERIAL.get(kind, "synthetic")
+    base = MATERIALS[material]["loss"][band] * MATERIAL_SCALE.get(kind, 1.0)
     height = max(item.height_m, 0.0)
     if height <= 0.3:
-        return 0.0
+        return 0.0, material
     factor = 1.0 if height >= 1.0 else (height - 0.3) / 0.7
-    return base * max(0.0, min(1.0, factor))
+    return base * max(0.0, min(1.0, factor)), material
 
 
-def simulate_layout(layout: Layout) -> dict:
+def simulate_layout(layout: Layout, band: str = DEFAULT_BAND) -> dict:
+    if band not in BANDS:
+        band = DEFAULT_BAND
+    frequency_mhz = BANDS[band]["freq_mhz"]
     spec = layout.spec
     ap_x, ap_y = spec.center(layout.ap)
     points = []
@@ -228,17 +265,21 @@ def simulate_layout(layout: Layout) -> dict:
         dx = cx - ap_x
         dy = cy - ap_y
         distance = max(0.8, (dx * dx + dy * dy + (AP_HEIGHT_M - RX_HEIGHT_M) ** 2) ** 0.5)
-        fspl = 20.0 * math.log10(distance) + 20.0 * math.log10(FREQ_MHZ) - 27.55
+        fspl = 20.0 * math.log10(distance) + 20.0 * math.log10(frequency_mhz) - 27.55
 
         penetration = 0.0
+        hit_materials = []
         for item in layout.furniture:
             kind, _ = classify(item.name)
-            loss = _active_loss(item, kind)
+            loss, material = _material_loss(item, kind, band)
             if loss <= 0:
                 continue
             if _segment_hits_rect(ap_x, ap_y, cx, cy, item.x1, item.y1, item.x2, item.y2):
                 penetration += loss
-        penetration = min(penetration, 30.0)
+                hit_materials.append(
+                    {"label": MATERIALS[material]["label"], "db": round(loss, 1)}
+                )
+        penetration = min(penetration, 40.0)
 
         rssi = TX_EIRP_DBM - fspl - penetration - CLUTTER_DB
         quality = 0
@@ -255,6 +296,7 @@ def simulate_layout(layout: Layout) -> dict:
                 "y_m": round(cy, 4),
                 "distance_m": round(distance, 3),
                 "penetration_db": round(penetration, 2),
+                "materials": hit_materials,
                 "rssi_dbm": round(rssi, 2),
                 "quality": quality,
                 "quality_label": QUALITY_LABELS[quality],
@@ -273,14 +315,16 @@ def simulate_layout(layout: Layout) -> dict:
             "quality_counts": counts,
         },
         "params": {
-            "frequency_mhz": FREQ_MHZ,
+            "band": band,
+            "frequency_mhz": frequency_mhz,
             "tx_eirp_dbm": TX_EIRP_DBM,
             "clutter_db": CLUTTER_DB,
             "ap_height_m": AP_HEIGHT_M,
             "rx_height_m": RX_HEIGHT_M,
             "thresholds_dbm": list(QUALITY_THRESHOLDS),
             "quality_labels": list(QUALITY_LABELS),
-            "note": "简化物理模型，用于展示布局与路由器位置对覆盖的相对影响，非实测标定。",
+            "materials": MATERIALS,
+            "note": "简化物理模型，穿透衰减按材料表与频段取值；用于展示相对变化，非实测标定。",
         },
     }
 
@@ -500,6 +544,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/materials":
+            self._json({"bands": BANDS, "materials": MATERIALS, "kind_material": KIND_MATERIAL})
+            return
         if parsed.path == "/api/layouts":
             self._json({"layouts": list_layouts()})
             return
@@ -544,7 +591,8 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/simulate":
             try:
                 layout = Layout.from_dict(payload)
-                self._json(simulate_layout(layout))
+                band = str(payload.get("band") or DEFAULT_BAND)
+                self._json(simulate_layout(layout, band))
             except Exception as exc:
                 self._json({"error": f"仿真失败：{exc}"}, 500)
             return

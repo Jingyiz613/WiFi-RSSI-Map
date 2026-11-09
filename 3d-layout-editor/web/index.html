@@ -78,6 +78,15 @@
       <p class="tip" id="aiStats">64×76 五档分类 · 示例输入为模拟值</p>
     </section>
 
+    <section id="bandSection">
+      <h2>频段</h2>
+      <div class="edit-row">
+        <button id="btnBand24" class="ghost active">2.4 GHz</button>
+        <button id="btnBand5" class="ghost">5 GHz</button>
+      </div>
+      <p class="tip">穿透损耗按材料表取值</p>
+    </section>
+
     <section>
       <h2>图层</h2>
       <label class="switch"><input type="checkbox" id="tgHeat" checked /><span>信号热力图</span></label>
@@ -85,6 +94,18 @@
       <label class="switch"><input type="checkbox" id="tgBlocked" checked /><span>禁行格</span></label>
       <label class="switch"><input type="checkbox" id="tgLabels" checked /><span>名称标签</span></label>
       <label class="switch"><input type="checkbox" id="tgWalls" checked /><span>房间墙体</span></label>
+    </section>
+
+    <section id="materialSection">
+      <h2>障碍物衰减</h2>
+      <details>
+        <summary>典型材料衰减表（dB）</summary>
+        <table id="materialTable">
+          <thead><tr><th>材料</th><th>厚度</th><th>2.4G</th><th>5G</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="tip">来自团队资料表，仅用于展示相对变化，非实测标定。</p>
+      </details>
     </section>
 
     <section class="legend">

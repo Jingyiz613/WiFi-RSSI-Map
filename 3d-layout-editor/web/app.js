@@ -22,6 +22,7 @@ let presenting = false;
 let aiInput = 'example';
 let aiEnvironment = 'empty';
 let aiSeq = 0;
+let band = '2.4g';
 
 const escapeHtml = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -43,6 +44,12 @@ const FURNITURE_LIBRARY = [
   { name: '洗衣机', kind: 'washer', w: 0.6, d: 0.6, h: 0.92, color: '#e3e7ee' },
   { name: '绿植', kind: 'plant', w: 0.45, d: 0.45, h: 1.05, color: '#3f8f5a' },
   { name: '空调', kind: 'aircon', w: 0.9, d: 0.32, h: 1.9, color: '#dde3ec' },
+  { name: '砖墙 120', kind: 'brick_120', w: 2.0, d: 0.12, h: 2.2, color: '#8a8f99' },
+  { name: '砖墙 240', kind: 'brick_240', w: 2.0, d: 0.24, h: 2.2, color: '#767c87' },
+  { name: '木门', kind: 'wood_door', w: 0.9, d: 0.08, h: 2.1, color: '#a97b4f' },
+  { name: '玻璃窗', kind: 'glass_window', w: 1.2, d: 0.06, h: 1.2, color: '#7fc4d8' },
+  { name: '混凝土柱', kind: 'concrete', w: 0.4, d: 0.4, h: 2.2, color: '#9aa0a6' },
+  { name: '金属板', kind: 'metal_panel', w: 1.0, d: 0.05, h: 2.0, color: '#b9c0ca' },
 ];
 
 function toast(message) {
@@ -241,7 +248,7 @@ async function runSimulate() {
   try {
     const data = await api('/api/simulate', {
       method: 'POST',
-      body: sceneRoot.getLayoutPayload(),
+      body: { ...sceneRoot.getLayoutPayload(), band },
     });
     if (seq !== simulateSeq) return;
     sceneRoot.setHeatmap(data);
@@ -271,6 +278,29 @@ function updateHeatLegend(data) {
   if (el) el.textContent = text;
   const present = $('presentStats');
   if (present) present.textContent = text;
+}
+
+function setBand(value) {
+  band = value;
+  $('btnBand24')?.classList.toggle('active', value === '2.4g');
+  $('btnBand5')?.classList.toggle('active', value === '5g');
+  runSimulate();
+}
+
+async function loadMaterials() {
+  try {
+    const data = await api('/api/materials');
+    const tbody = document.querySelector('#materialTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = Object.values(data.materials)
+      .map(
+        (m) =>
+          `<tr><td>${m.label}</td><td>${m.thickness_mm}</td><td>${m.loss['2.4g'].toFixed(0)}</td><td>${m.loss['5g'].toFixed(0)}</td></tr>`
+      )
+      .join('');
+  } catch (error) {
+    console.warn('材料表加载失败', error);
+  }
 }
 
 function setAIMode(kind, value) {
@@ -519,6 +549,8 @@ function bindUi() {
   $('btnDelete').addEventListener('click', deleteSelected);
   $('btnDownload').addEventListener('click', download);
   $('btnAI').addEventListener('click', () => runAI());
+  $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
+  $('btnBand5')?.addEventListener('click', () => setBand('5g'));
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIExample')?.addEventListener('click', () => setAIMode('input', 'example'));
   $('btnAILayout')?.addEventListener('click', () => setAIMode('input', 'layout'));
@@ -622,6 +654,7 @@ async function init() {
 
   bindUi();
   renderLibrary();
+  loadMaterials();
   window.__miniAuto3D = sceneRoot; // 便于调试和自动化检查
 
   try {

@@ -308,11 +308,38 @@ button.wide { width: 100%; margin-top: 7px; }
 .ai-bar i:nth-child(4) { background: #f2c14e; }
 .ai-bar i:nth-child(5) { background: #ef6c4d; }
 
-#aiSection .edit-row button {
+#aiSection .edit-row button,
+#bandSection .edit-row button {
   font-size: 10px;
   white-space: nowrap;
   padding-left: 4px;
   padding-right: 4px;
+}
+
+#materialSection table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+  margin-top: 4px;
+}
+#materialSection th,
+#materialSection td {
+  padding: 3px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+#materialSection th:first-child,
+#materialSection td:first-child {
+  text-align: left;
+}
+#materialSection th {
+  color: var(--muted);
+  font-weight: 500;
+}
+#materialSection summary {
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--muted);
 }
 
 .legend div {
