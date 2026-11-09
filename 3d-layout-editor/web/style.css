@@ -271,7 +271,7 @@ button.wide { width: 100%; margin-top: 7px; }
   height: 8px;
   margin: 8px 0 3px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #461246, #8c1950, #d22d46, #f07837, #f5c84b, #82e178, #35d6c4, #d2fff5);
+  background: linear-gradient(90deg, #3b1f6e, #2f6fdb, #25b3a4, #f2c14e, #ef6c4d, #e64238);
   opacity: 0.9;
 }
 .heat-scale {
