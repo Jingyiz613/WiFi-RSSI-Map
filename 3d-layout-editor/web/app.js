@@ -347,10 +347,15 @@ function renderProperties(item) {
 async function applyFurnitureMaterial(material) {
   if (!selectedItem) return;
   const target = selectedItem;
-  sceneRoot.setFurnitureMaterial(target.index, material);
+  const next = material || '';
+  if ((target.material || '') === next) return;
+  const before = sceneRoot.snapshot();
+  sceneRoot.setFurnitureMaterial(target.index, next);
+  history.push(before);
+  if (history.length > 50) history.shift();
   renderProperties(target);
   await reanalyze();
-  const label = material ? materialData?.[material]?.label || material : '自动';
+  const label = next ? materialData?.[next]?.label || next : '自动';
   toast(`「${target.name}」材质：${label}`);
 }
 
