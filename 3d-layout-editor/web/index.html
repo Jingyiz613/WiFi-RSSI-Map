@@ -61,6 +61,22 @@
       <button id="btnDownload" class="wide ghost">下载当前布局 JSON</button>
     </section>
 
+    <section id="aiSection">
+      <h2>AI 补全 <span class="ai-badge">NEW</span></h2>
+      <div class="edit-row">
+        <button id="btnAIExample" class="ghost active">示例 20 点</button>
+        <button id="btnAILayout" class="ghost">当前布局采样</button>
+      </div>
+      <div class="edit-row">
+        <button id="btnAIEmpty" class="ghost active">空房间模型</button>
+        <button id="btnAIFurnished" class="ghost">家具模型</button>
+      </div>
+      <button id="btnAIRun" class="wide primary">运行模型</button>
+      <div class="ai-bar"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="heat-scale"><span>弱</span><span>强</span></div>
+      <p class="tip" id="aiStats">64×76 五档分类 · 示例输入为模拟值</p>
+    </section>
+
     <section>
       <h2>图层</h2>
       <label class="switch"><input type="checkbox" id="tgHeat" checked /><span>信号热力图</span></label>

@@ -1,0 +1,84 @@
+{
+  "model": "DenseFiveClassUNet",
+  "labels": [
+    "弱",
+    "较弱",
+    "中",
+    "较强",
+    "强"
+  ],
+  "thresholds_dbm": [
+    -39.5,
+    -36.0,
+    -33.0,
+    -29.0
+  ],
+  "grade_policy": "training_only_quintiles_rounded_0.5db",
+  "training_quantiles_dbm": [
+    -39.3,
+    -36.0,
+    -33.0,
+    -29.0
+  ],
+  "interpretation": "Project-relative signal strength; not universal Wi-Fi quality categories.",
+  "mean_dbm": -34.05427251732102,
+  "scale_db": 6.2643307178204655,
+  "train_scenes": [
+    "P16",
+    "P22",
+    "P28",
+    "P44",
+    "P62",
+    "P68",
+    "P74"
+  ],
+  "validation_scene": "P64",
+  "training_points": 433,
+  "training_class_counts": [
+    84,
+    79,
+    88,
+    93,
+    89
+  ],
+  "class_weights": [
+    1.0141875619408522,
+    1.0457897415975594,
+    0.9908697884069083,
+    0.963865529074413,
+    0.9852873789802667
+  ],
+  "input_channels": [
+    "sparse_rssi",
+    "observation_mask",
+    "room_mask",
+    "input_only_idw",
+    "nearest_observation_distance",
+    "observation_density"
+  ],
+  "output": "5 categorical logits, softmax probabilities, argmax class; no RSSI regression output",
+  "epochs_max": 150,
+  "patience": 25,
+  "steps_per_epoch": 6,
+  "learning_rate": 0.0003,
+  "weight_decay": 0.01,
+  "seed": 2026,
+  "input_points": 20,
+  "rows": 7,
+  "columns": 9,
+  "room_width_m": 8.23,
+  "room_height_m": 6.95,
+  "test_evaluated": false,
+  "source_sha256": {
+    "output\\training_tables_v1\\training_points.csv": "95493a5a9f8dea420a7220f927962d1d9fad5c72a072027862770486e0ceb190",
+    "output\\rss_archive\\AP_P74_20261021_140830\\WiFi_RSS_P74_20261021\\rss_summary_20261021_140830.csv": "e5d26a2a86051d4e02dcbea185db345feb6e66ade898ccd62170fe5f0b997595"
+  },
+  "output_shape": [
+    64,
+    76
+  ],
+  "supervision": "Bilinear sampling of output logits at original measured coordinates; hidden measurements only.",
+  "max_epochs": 150,
+  "smoothness_weight": 0,
+  "note": "Thresholds frozen from training-only quintiles of prior classification; no added pseudo-labels."
+}

@@ -10,10 +10,15 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
+import os
+import shutil
 import socket
+import subprocess
 import sys
+import tempfile
 import threading
 import webbrowser
 from functools import partial
@@ -25,6 +30,7 @@ ROOT = Path(__file__).resolve().parent
 CORE = ROOT / "core"
 WEB = ROOT / "web"
 DATA = ROOT / "data"
+MODEL_DIR = ROOT / "model"
 sys.path.insert(0, str(CORE))
 
 from layout import Layout  # noqa: E402
@@ -318,6 +324,94 @@ def state_payload(layout: Layout, file_name: str = "") -> dict:
     }
 
 
+def _read_example_ids() -> list[str]:
+    with (MODEL_DIR / "example_input.csv").open(newline="", encoding="utf-8-sig") as fh:
+        return [row["point_id"].strip().upper() for row in csv.DictReader(fh)]
+
+
+_MODEL_PYTHON = None
+
+
+def _model_python() -> list[str]:
+    """Pick a Python that can import numpy; the NumPy inference needs it."""
+    global _MODEL_PYTHON
+    if _MODEL_PYTHON is not None:
+        return _MODEL_PYTHON
+    explicit = os.environ.get("MINIAUTO_MODEL_PYTHON")
+    candidates = [[explicit]] if explicit else []
+    launcher = shutil.which("py")
+    if launcher:
+        candidates.extend([[launcher, "-3.13"], [launcher, "-3.12"], [launcher, "-3.11"]])
+    candidates.append([sys.executable])
+    for command in candidates:
+        try:
+            probe = subprocess.run(
+                command + ["-c", "import numpy"], capture_output=True, timeout=20
+            )
+            if probe.returncode == 0:
+                _MODEL_PYTHON = command
+                return command
+        except Exception:
+            continue
+    _MODEL_PYTHON = [sys.executable]
+    return _MODEL_PYTHON
+
+
+def predict_layout(payload: dict) -> dict:
+    """Run the trained 20-point dense classifier and return its 64x76 grid."""
+    environment = str(payload.get("environment") or "empty")
+    if environment not in ("empty", "furnished"):
+        raise ValueError("environment 只能是 empty 或 furnished")
+    mode = str(payload.get("input") or "example")
+    if mode not in ("example", "layout"):
+        raise ValueError("input 只能是 example 或 layout")
+
+    temp_path = None
+    try:
+        if mode == "example":
+            input_path = MODEL_DIR / "example_input.csv"
+        else:
+            layout = Layout.from_dict(payload.get("layout") or {})
+            simulated = simulate_layout(layout)
+            by_cell = {(p["row"], p["column"]): p["rssi_dbm"] for p in simulated["points"]}
+            rows = []
+            for point_id in _read_example_ids():
+                key = (int(point_id[1]), int(point_id[2]))
+                if key not in by_cell:
+                    raise ValueError(f"布局里没有测点 {point_id}")
+                rows.append({"point_id": point_id, "rssi_dbm": by_cell[key]})
+            handle = tempfile.NamedTemporaryFile(
+                "w", suffix=".csv", delete=False, encoding="utf-8", newline=""
+            )
+            temp_path = handle.name
+            writer = csv.DictWriter(handle, fieldnames=["point_id", "rssi_dbm"])
+            writer.writeheader()
+            writer.writerows(rows)
+            handle.close()
+            input_path = Path(temp_path)
+
+        command = _model_python() + [
+            str(MODEL_DIR / "numpy_infer.py"),
+            "--model",
+            environment,
+            "--input",
+            str(input_path),
+        ]
+        proc = subprocess.run(
+            command, capture_output=True, text=True, encoding="utf-8", timeout=120
+        )
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()[-600:]
+            raise RuntimeError(detail or f"模型进程退出码 {proc.returncode}")
+        return json.loads(proc.stdout)
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+
+
 def build_scene(layout: Layout, file_name: str) -> dict:
     payload = state_payload(layout, file_name)
     spec = layout.spec
@@ -428,7 +522,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate"):
+        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate", "/api/predict"):
             self._json({"error": "接口不存在"}, 404)
             return
         try:
@@ -453,6 +547,13 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(simulate_layout(layout))
             except Exception as exc:
                 self._json({"error": f"仿真失败：{exc}"}, 500)
+            return
+
+        if parsed.path == "/api/predict":
+            try:
+                self._json(predict_layout(payload))
+            except Exception as exc:
+                self._json({"error": f"AI 补全失败：{exc}"}, 503)
             return
 
         # /api/save

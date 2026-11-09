@@ -393,10 +393,13 @@ export class SceneRoot {
     this.apGroup = new THREE.Group();
     this.startGroup = new THREE.Group();
     this.heatGroup = new THREE.Group();
+    this.aiGroup = new THREE.Group();
+    this.aiPointGroup = new THREE.Group();
+    this.aiGroup.add(this.aiPointGroup);
     this.root.add(
       this.wallGroup, this.floorGroup, this.gridGroup, this.blockedGroup,
       this.stopGroup, this.routeGroup, this.furnitureGroup, this.apGroup, this.startGroup,
-      this.heatGroup
+      this.heatGroup, this.aiGroup
     );
 
     // 悬停高亮（常驻，不随布局重建）
@@ -818,6 +821,81 @@ export class SceneRoot {
     this.heatTexture.needsUpdate = true;
   }
 
+  setAiHeatmap(data) {
+    if (!data || !Array.isArray(data.classes) || !this.room.cols) return;
+    this.aiData = data;
+    const ny = data.grid?.ny || data.classes.length;
+    const nx = data.grid?.nx || data.classes[0].length;
+    const cell = 12;
+
+    if (!this.aiCanvas) {
+      this.aiCanvas = document.createElement('canvas');
+      this.aiCtx = this.aiCanvas.getContext('2d');
+      this.aiTexture = new THREE.CanvasTexture(this.aiCanvas);
+      this.aiTexture.colorSpace = THREE.SRGBColorSpace;
+      this.aiTexture.minFilter = THREE.LinearFilter;
+      this.aiTexture.magFilter = THREE.LinearFilter;
+      const geo = new THREE.PlaneGeometry(this.room.w, this.room.d);
+      const mat = new THREE.MeshBasicMaterial({
+        map: this.aiTexture,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      this.aiMesh = new THREE.Mesh(geo, mat);
+      this.aiMesh.rotation.x = -Math.PI / 2;
+      this.aiMesh.position.y = 0.006;
+      this.aiGroup.add(this.aiMesh);
+    }
+
+    const canvas = this.aiCanvas;
+    canvas.width = nx * cell;
+    canvas.height = ny * cell;
+    const ctx = this.aiCtx;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const colors = ['#3b1f6e', '#2f6fdb', '#25b3a4', '#f2c14e', '#ef6c4d'];
+    for (let r = 0; r < ny; r += 1) {
+      for (let c = 0; c < nx; c += 1) {
+        const cls = data.classes[r]?.[c] ?? 0;
+        ctx.fillStyle = colors[cls] || colors[0];
+        ctx.fillRect(c * cell, r * cell, cell, cell);
+      }
+    }
+
+    if (!this.aiBlur) this.aiBlur = document.createElement('canvas');
+    const blur = this.aiBlur;
+    blur.width = canvas.width;
+    blur.height = canvas.height;
+    const bctx = blur.getContext('2d');
+    bctx.clearRect(0, 0, blur.width, blur.height);
+    bctx.filter = 'blur(6px)';
+    bctx.drawImage(canvas, 0, 0);
+    bctx.filter = 'none';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(blur, 0, 0);
+    this.aiTexture.needsUpdate = true;
+
+    this._clearGroup(this.aiPointGroup);
+    for (const point of data.points || []) {
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })
+      );
+      dot.position.set(point.x_m - this.room.w / 2, 0.035, point.y_m - this.room.d / 2);
+      dot.renderOrder = 6;
+      this.aiPointGroup.add(dot);
+    }
+    this.aiGroup.visible = true;
+    this.aiPointGroup.visible = true;
+  }
+
+  clearAiHeatmap() {
+    this.aiData = null;
+    if (this.aiGroup) this.aiGroup.visible = false;
+    if (this.aiPointGroup) this.aiPointGroup.visible = false;
+  }
+
   setCells(cells) {
     this.data.cells = cells;
     this._clearGroup(this.blockedGroup);
@@ -938,7 +1016,7 @@ export class SceneRoot {
     for (const group of [
       this.floorGroup, this.wallGroup, this.gridGroup, this.blockedGroup,
       this.stopGroup, this.routeGroup, this.furnitureGroup, this.apGroup, this.startGroup,
-      this.heatGroup,
+      this.heatGroup, this.aiGroup,
     ]) {
       this._clearGroup(group);
     }
@@ -1304,6 +1382,7 @@ export class SceneRoot {
       stops: this.stopGroup,
       walls: this.wallGroup,
       heatmap: this.heatGroup,
+      ai: this.aiGroup,
       labels: null,
     };
     if (name === 'labels') {

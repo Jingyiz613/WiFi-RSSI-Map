@@ -19,6 +19,9 @@ let simulateTimer = null;
 let simulateSeq = 0;
 let lastSimulateAt = 0;
 let presenting = false;
+let aiInput = 'example';
+let aiEnvironment = 'empty';
+let aiSeq = 0;
 
 const escapeHtml = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -149,7 +152,7 @@ function updateHud(data) {
     rows.splice(4, 0, ['强覆盖', `${heat.stats.strong_cells} 格`]);
   }
   $('hud').innerHTML = `
-    <div class="hud-title">当前布局</div>
+    <div class="hud-title">物理仿真</div>
     ${rows.map(([k, v, cls]) => `<div class="row"><span>${k}</span><b class="${cls || ''}">${escapeHtml(v)}</b></div>`).join('')}
   `;
 }
@@ -268,6 +271,59 @@ function updateHeatLegend(data) {
   if (el) el.textContent = text;
   const present = $('presentStats');
   if (present) present.textContent = text;
+}
+
+function setAIMode(kind, value) {
+  if (kind === 'input') {
+    aiInput = value;
+    $('btnAIExample')?.classList.toggle('active', value === 'example');
+    $('btnAILayout')?.classList.toggle('active', value === 'layout');
+  } else {
+    aiEnvironment = value;
+    $('btnAIEmpty')?.classList.toggle('active', value === 'empty');
+    $('btnAIFurnished')?.classList.toggle('active', value === 'furnished');
+  }
+}
+
+function updateAIStats(data) {
+  const el = $('aiStats');
+  if (!el || !data?.stats?.class_counts) return;
+  const counts = data.stats.class_counts;
+  const total = counts.reduce((sum, value) => sum + value, 0) || 1;
+  const strong = ((counts[3] + counts[4]) / total) * 100;
+  const confidence = (data.stats.mean_confidence ?? 0) * 100;
+  el.textContent = `强覆盖 ${strong.toFixed(0)}% · 平均置信 ${confidence.toFixed(0)}% · 64×76`;
+}
+
+async function runAI() {
+  if (!sceneRoot) return;
+  const button = $('btnAIRun');
+  if (button) {
+    button.disabled = true;
+    button.textContent = '推理中…';
+  }
+  const seq = ++aiSeq;
+  try {
+    const payload = { environment: aiEnvironment, input: aiInput };
+    if (aiInput === 'layout') payload.layout = sceneRoot.getLayoutPayload();
+    const data = await api('/api/predict', { method: 'POST', body: payload });
+    if (seq !== aiSeq) return;
+    const heatToggle = $('tgHeat');
+    if (heatToggle?.checked) {
+      heatToggle.checked = false;
+      sceneRoot.setLayer('heatmap', false);
+    }
+    sceneRoot.setAiHeatmap(data);
+    updateAIStats(data);
+    toast('AI 补全完成');
+  } catch (error) {
+    if (seq === aiSeq) showError(`AI 补全失败：${error.message}`);
+  } finally {
+    if (seq === aiSeq && button) {
+      button.disabled = false;
+      button.textContent = '运行模型';
+    }
+  }
 }
 
 function togglePresent(force) {
@@ -423,6 +479,7 @@ function bindUi() {
 
   $('tgHeat').addEventListener('change', (event) => {
     sceneRoot.setLayer('heatmap', event.target.checked);
+    if (event.target.checked) sceneRoot.clearAiHeatmap();
   });
 
   const orbitBtn = $('btnOrbit');
@@ -442,6 +499,11 @@ function bindUi() {
   $('btnDelete').addEventListener('click', deleteSelected);
   $('btnDownload').addEventListener('click', download);
   $('btnPresent').addEventListener('click', () => togglePresent());
+  $('btnAIExample')?.addEventListener('click', () => setAIMode('input', 'example'));
+  $('btnAILayout')?.addEventListener('click', () => setAIMode('input', 'layout'));
+  $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
+  $('btnAIFurnished')?.addEventListener('click', () => setAIMode('environment', 'furnished'));
+  $('btnAIRun')?.addEventListener('click', runAI);
   $('btnDemoLayout').addEventListener('click', () => load('layout.demo.json'));
   $('btnEmptyLayout').addEventListener('click', () => load('layout.json'));
 
