@@ -649,6 +649,10 @@ button.wide { width: 100%; margin-top: 7px; }
 
 /* ---------- 选中家具浮动材质卡 ---------- */
 
+.tag-hidden {
+  display: none !important;
+}
+
 .item-card {
   position: fixed;
   z-index: 40;

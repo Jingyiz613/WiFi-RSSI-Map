@@ -730,6 +730,10 @@ export class SceneRoot {
     this.selectedIndex = index;
     if (index >= 0) this._showBox(index);
     else this.hoverBox.visible = false;
+    // 选中时让浮动卡片接管，隐藏该家具自己的标签，避免两处文字叠在一起
+    for (const [i, tag] of this.tagByIndex) {
+      if (tag.el) tag.el.classList.toggle('tag-hidden', i === index);
+    }
     const item = index >= 0 ? this.data.furniture.find((f) => f.index === index) : null;
     this.onSelect?.(item || null);
   }

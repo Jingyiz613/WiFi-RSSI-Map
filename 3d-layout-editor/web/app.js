@@ -303,17 +303,6 @@ async function loadMaterials() {
         .join('');
     }
     const entries = Object.entries(data.materials);
-    const prop = $('propMaterial');
-    if (prop) {
-      prop.innerHTML =
-        '<option value="">自动（按家具类型）</option>' +
-        entries
-          .map(
-            ([key, m]) =>
-              `<option value="${key}">${m.label} · ${m.loss['2.4g'].toFixed(0)}/${m.loss['5g'].toFixed(0)} dB</option>`
-          )
-          .join('');
-    }
     const lib = $('libMaterial');
     if (lib) {
       lib.innerHTML =
@@ -352,14 +341,12 @@ function renderProperties(item) {
   if (sizeEl) {
     sizeEl.textContent = `${Math.round(item.width_m * 100)}×${Math.round(item.depth_m * 100)} cm`;
   }
-  const select = $('propMaterial');
-  if (select) select.value = item.material || '';
   const tip = $('propTip');
   if (tip) {
     const m = item.material ? materialData?.[item.material] : null;
     tip.textContent = m
-      ? `按「${m.label}」：2.4G ${m.loss['2.4g'].toFixed(0)} dB / 5G ${m.loss['5g'].toFixed(0)} dB`
-      : '自动模式：按家具类型推断材料';
+      ? `材质：${m.label} · 在家具上方卡片切换`
+      : '材质：自动 · 在家具上方卡片切换';
   }
   renderItemCard(item);
   if (wasHidden) {
@@ -719,7 +706,6 @@ function bindUi() {
   $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
-  $('propMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('itemCardMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
