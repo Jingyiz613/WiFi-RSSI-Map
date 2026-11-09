@@ -37,7 +37,7 @@ python -m pip install numpy
 
 不需要安装 PyTorch。启动脚本会自动寻找一个能 `import numpy` 的 Python。
 
-Windows 下双击 `start.bat`，浏览器会自动打开，默认加载有 14 件家具的示例房间（`layout.demo.json`）；想从空房间开始，在左上角「布局」里切到 `layout.json`。
+Windows 下双击 `start.bat`，浏览器会自动打开空白房间（`layout.json`），家具由你自己摆；想直接看有家具的示例，在左上角「布局」里切到 `layout.demo.json`。
 
 也可以命令行启动：
 

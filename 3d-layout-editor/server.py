@@ -656,7 +656,7 @@ def pick_port(start: int = 8765, tries: int = 40) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="miniAuto 3D 布局编辑器")
     parser.add_argument("--port", type=int, default=0, help="固定端口，0 表示自动选择")
-    parser.add_argument("--layout", default="layout.demo.json", help="默认加载的布局文件")
+    parser.add_argument("--layout", default="layout.json", help="默认加载的布局文件")
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
     args = parser.parse_args()
 

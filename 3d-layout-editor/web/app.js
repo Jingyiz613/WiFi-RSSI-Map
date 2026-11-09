@@ -814,7 +814,6 @@ async function init() {
   const wanted = new URLSearchParams(location.search).get('layout');
   const preferred =
     layouts.find((item) => item.file === wanted)?.file ||
-    layouts.find((item) => item.file === 'layout.demo.json')?.file ||
     layouts.find((item) => item.file === 'layout.json')?.file ||
     layouts[0].file;
 
