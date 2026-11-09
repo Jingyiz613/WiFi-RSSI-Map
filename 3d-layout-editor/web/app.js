@@ -23,6 +23,7 @@ let aiInput = 'example';
 let aiEnvironment = 'empty';
 let aiSeq = 0;
 let band = '2.4g';
+let materialData = null;
 
 const escapeHtml = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -88,12 +89,14 @@ async function api(url, options = {}) {
 /* ---------- 悬停详情 ---------- */
 
 function furnitureTipHtml(item) {
+  const material = item.material_label || (item.material ? item.material : '自动');
   return `
     <div class="tt-title">${escapeHtml(item.name)}<span class="tt-badge ok">家具</span></div>
     <div class="tt-grid">
       <span>尺寸</span><b>${Math.round(item.width_m * 100)} × ${Math.round(item.depth_m * 100)} cm</b>
       <span>中心</span><b>${item.cx.toFixed(2)}, ${item.cz.toFixed(2)} m</b>
       <span>高度</span><b>${item.height_m.toFixed(2)} m（估算）</b>
+      <span>材质</span><b>${escapeHtml(material)}</b>
       <span>禁行</span><b>${item.blocked_cells} 格</b>
     </div>`;
 }
@@ -212,6 +215,7 @@ async function load(file) {
     updateDeleteButton(null);
     sceneRoot.setLayout(data);
     $('layoutSelect').value = file;
+    syncRoomInputs();
     updateHud(data);
     updateNotice(data);
     runSimulate();
@@ -290,17 +294,97 @@ function setBand(value) {
 async function loadMaterials() {
   try {
     const data = await api('/api/materials');
+    materialData = data.materials;
     const tbody = document.querySelector('#materialTable tbody');
-    if (!tbody) return;
-    tbody.innerHTML = Object.values(data.materials)
-      .map(
-        (m) =>
-          `<tr><td>${m.label}</td><td>${m.thickness_mm}</td><td>${m.loss['2.4g'].toFixed(0)}</td><td>${m.loss['5g'].toFixed(0)}</td></tr>`
-      )
-      .join('');
+    if (tbody) {
+      tbody.innerHTML = Object.values(data.materials)
+        .map(
+          (m) =>
+            `<tr><td>${m.label}</td><td>${m.thickness_mm}</td><td>${m.loss['2.4g'].toFixed(0)}</td><td>${m.loss['5g'].toFixed(0)}</td></tr>`
+        )
+        .join('');
+    }
+    const select = $('propMaterial');
+    if (select) {
+      select.innerHTML =
+        '<option value="">自动（按家具类型）</option>' +
+        Object.entries(data.materials)
+          .map(
+            ([key, m]) =>
+              `<option value="${key}">${m.label} · ${m.loss['2.4g'].toFixed(0)}/${m.loss['5g'].toFixed(0)} dB</option>`
+          )
+          .join('');
+    }
   } catch (error) {
     console.warn('材料表加载失败', error);
   }
+}
+
+function renderProperties(item) {
+  const section = $('propSection');
+  if (!section) return;
+  if (!item) {
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+  const nameEl = $('propName');
+  if (nameEl) nameEl.textContent = item.name;
+  const sizeEl = $('propSize');
+  if (sizeEl) {
+    sizeEl.textContent = `${Math.round(item.width_m * 100)}×${Math.round(item.depth_m * 100)} cm`;
+  }
+  const select = $('propMaterial');
+  if (select) select.value = item.material || '';
+  const tip = $('propTip');
+  if (tip) {
+    tip.textContent = item.material
+      ? `按「${materialData?.[item.material]?.label || item.material}」计算穿透损耗`
+      : '自动模式：按家具类型推断材料';
+  }
+}
+
+async function applyFurnitureMaterial(material) {
+  if (!selectedItem) return;
+  const target = selectedItem;
+  sceneRoot.setFurnitureMaterial(target.index, material);
+  renderProperties(target);
+  await reanalyze();
+  const label = material ? materialData?.[material]?.label || material : '自动';
+  toast(`「${target.name}」材质：${label}`);
+}
+
+function syncRoomInputs() {
+  if (!sceneRoot) return;
+  const w = $('roomWidth');
+  const d = $('roomDepth');
+  if (w) w.value = sceneRoot.room.w.toFixed(2);
+  if (d) d.value = sceneRoot.room.d.toFixed(2);
+}
+
+async function applyRoomSize() {
+  if (!sceneRoot) return;
+  const w = Number($('roomWidth').value);
+  const d = Number($('roomDepth').value);
+  if (!Number.isFinite(w) || !Number.isFinite(d) || w < 2 || w > 30 || d < 2 || d > 30) {
+    toast('房间尺寸需在 2–30 m 之间');
+    return;
+  }
+  if (Math.abs(w - sceneRoot.room.w) < 1e-6 && Math.abs(d - sceneRoot.room.d) < 1e-6) {
+    toast('尺寸没有变化');
+    return;
+  }
+  const before = sceneRoot.snapshot();
+  sceneRoot.setRoomSize(w, d);
+  history.push(before);
+  if (history.length > 50) history.shift();
+  selectedItem = null;
+  updateDeleteButton(null);
+  renderProperties(null);
+  syncRoomInputs();
+  await reanalyze();
+  runSimulate();
+  toast(`房间已改为 ${w.toFixed(2)} × ${d.toFixed(2)} m`);
 }
 
 function setAIMode(kind, value) {
@@ -402,6 +486,8 @@ async function undo() {
   sceneRoot.restore(before);
   selectedItem = null;
   updateDeleteButton(null);
+  renderProperties(null);
+  syncRoomInputs();
   await reanalyze();
   toast('已撤销');
 }
@@ -455,6 +541,7 @@ async function addFromLibrary(spec) {
   if (history.length > 50) history.shift();
   selectedItem = item;
   updateDeleteButton(item);
+  renderProperties(item);
   await reanalyze();
   toast(`已添加「${item.name}」，拖动它摆位置`);
 }
@@ -551,6 +638,8 @@ function bindUi() {
   $('btnAI').addEventListener('click', () => runAI());
   $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
+  $('btnRoomApply')?.addEventListener('click', applyRoomSize);
+  $('propMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIExample')?.addEventListener('click', () => setAIMode('input', 'example'));
   $('btnAILayout')?.addEventListener('click', () => setAIMode('input', 'layout'));
@@ -642,6 +731,7 @@ async function init() {
       onSelect: (item) => {
         selectedItem = item;
         updateDeleteButton(item);
+        renderProperties(item);
         if (!item) tooltip.classList.remove('show');
       },
     });

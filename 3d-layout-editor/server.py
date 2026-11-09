@@ -94,11 +94,17 @@ def furniture_meta(layout: Layout) -> list[dict]:
     out = []
     for index, item in enumerate(layout.furniture):
         kind, height = classify(item.name)
+        override = item.material if item.material in MATERIALS else ""
+        material = override or KIND_MATERIAL.get(kind, "synthetic")
         out.append(
             {
                 "index": index,
                 "name": item.name,
                 "kind": kind,
+                "material": override,
+                "material_auto": KIND_MATERIAL.get(kind, "synthetic"),
+                "material_used": material,
+                "material_label": MATERIALS[material]["label"],
                 "x1": round(item.x1, 4),
                 "y1": round(item.y1, 4),
                 "x2": round(item.x2, 4),
@@ -242,10 +248,20 @@ def _segment_hits_rect(x1, y1, x2, y2, xmin, ymin, xmax, ymax) -> bool:
     return u1 <= u2
 
 
-def _material_loss(item, kind: str, band: str) -> tuple[float, str]:
-    material = KIND_MATERIAL.get(kind, "synthetic")
-    base = MATERIALS[material]["loss"][band] * MATERIAL_SCALE.get(kind, 1.0)
-    height = max(item.height_m, 0.0)
+def _material_loss(item, kind: str, band: str, height_m: float) -> tuple[float, str]:
+    """穿透损耗：用户指定材质优先，否则按家具类型推断。
+
+    自动推断时家电按薄壳折减；手动选材质则按材料表原值计算。
+    """
+    override = item.material if item.material in MATERIALS else ""
+    if override:
+        material = override
+        scale = 1.0
+    else:
+        material = KIND_MATERIAL.get(kind, "synthetic")
+        scale = MATERIAL_SCALE.get(kind, 1.0)
+    base = MATERIALS[material]["loss"][band] * scale
+    height = max(float(height_m or 0.0), 0.0)
     if height <= 0.3:
         return 0.0, material
     factor = 1.0 if height >= 1.0 else (height - 0.3) / 0.7
@@ -270,8 +286,8 @@ def simulate_layout(layout: Layout, band: str = DEFAULT_BAND) -> dict:
         penetration = 0.0
         hit_materials = []
         for item in layout.furniture:
-            kind, _ = classify(item.name)
-            loss, material = _material_loss(item, kind, band)
+            kind, height = classify(item.name)
+            loss, material = _material_loss(item, kind, band, height)
             if loss <= 0:
                 continue
             if _segment_hits_rect(ap_x, ap_y, cx, cy, item.x1, item.y1, item.x2, item.y2):

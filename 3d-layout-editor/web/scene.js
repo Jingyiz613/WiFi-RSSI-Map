@@ -658,13 +658,115 @@ export class SceneRoot {
     return {
       ap: { ...this.data.ap },
       furniture: this.data.furniture.map((item) => ({ ...item })),
+      room: { w: this.room.w, d: this.room.d },
     };
   }
 
   restore(snapshot) {
+    const room = snapshot.room;
+    if (room && (Math.abs(room.w - this.room.w) > 1e-6 || Math.abs(room.d - this.room.d) > 1e-6)) {
+      this._rebuildRoom(room.w, room.d);
+    }
     if (snapshot.ap) this.data.ap = { ...snapshot.ap };
     this.data.furniture = (snapshot.furniture || []).map((item) => ({ ...item }));
+    this.data.room = {
+      ...this.data.room,
+      width_m: this.room.w,
+      height_m: this.room.d,
+      cell_width_m: this.room.cw,
+      cell_height_m: this.room.cd,
+    };
     this.rebuildObjects();
+  }
+
+  /** 只按当前 room 尺寸重建地板/墙体/网格与热力图层，不动家具数据。 */
+  _rebuildRoom(width, height) {
+    this.room.w = width;
+    this.room.d = height;
+    this.room.cw = width / this.room.cols;
+    this.room.cd = height / this.room.rows;
+    this._clearGroup(this.floorGroup);
+    this._clearGroup(this.wallGroup);
+    this._clearGroup(this.gridGroup);
+    this._clearGroup(this.heatGroup);
+    this._clearGroup(this.aiGroup);
+    this.floor = null;
+    this.heatMesh = null;
+    this.heatTexture = null;
+    this.heatCanvas = null;
+    this.heatCtx = null;
+    this.heatBlur = null;
+    this.heatData = null;
+    this.aiMesh = null;
+    this.aiTexture = null;
+    this.aiCanvas = null;
+    this.aiCtx = null;
+    this.aiBlur = null;
+    this.aiData = null;
+    this._buildFloor(width, height);
+    this._buildWalls(width, height);
+    this._buildGrid(width, height);
+    this.resize();
+  }
+
+  /** 改房间长宽：格数不变，家具保持原尺寸并贴边回收。 */
+  setRoomSize(width, height) {
+    if (!this.data) return false;
+    const w = clamp(Number(width) || this.room.w, 2, 30);
+    const d = clamp(Number(height) || this.room.d, 2, 30);
+    const oldW = this.room.w;
+    const oldD = this.room.d;
+    this._rebuildRoom(w, d);
+    this.data.room = {
+      ...this.data.room,
+      width_m: w,
+      height_m: d,
+      cell_width_m: this.room.cw,
+      cell_height_m: this.room.cd,
+    };
+    const sx = oldW > 1e-6 ? w / oldW : 1;
+    const sy = oldD > 1e-6 ? d / oldD : 1;
+    this.data.furniture = this.data.furniture.map((item) => {
+      const iw = Math.min(item.width_m, w - 0.1);
+      const id = Math.min(item.depth_m, d - 0.1);
+      const cx = clamp(item.cx * sx, iw / 2, w - iw / 2);
+      const cz = clamp(item.cz * sy, id / 2, d - id / 2);
+      return {
+        ...item,
+        width_m: iw,
+        depth_m: id,
+        cx,
+        cz,
+        x1: cx - iw / 2,
+        x2: cx + iw / 2,
+        y1: cz - id / 2,
+        y2: cz + id / 2,
+        area_m2: iw * id,
+      };
+    });
+    this.data.ap = {
+      ...this.data.ap,
+      x_m: (this.data.ap.column - 0.5) * this.room.cw,
+      y_m: (this.data.ap.row - 0.5) * this.room.cd,
+    };
+    if (this.data.start) {
+      this.data.start = {
+        ...this.data.start,
+        x_m: (this.data.start.column - 0.5) * this.room.cw,
+        y_m: (this.data.start.row - 0.5) * this.room.cd,
+      };
+    }
+    this.data.cells = [];
+    this.rebuildObjects();
+    this.setCells([]);
+    return true;
+  }
+
+  setFurnitureMaterial(index, material) {
+    const item = this.data.furniture.find((f) => f.index === index);
+    if (!item) return false;
+    item.material = material || '';
+    return true;
   }
 
   deleteFurniture(index) {
@@ -684,6 +786,7 @@ export class SceneRoot {
       index: this.data.furniture.length,
       name: spec.name,
       kind: spec.kind,
+      material: spec.material || '',
       height_m: spec.h,
       x1: spot.cx - width / 2,
       x2: spot.cx + width / 2,
@@ -913,6 +1016,8 @@ export class SceneRoot {
         item.kind = meta.kind;
         item.height_m = meta.height_m;
         item.blocked_cells = meta.blocked_cells;
+        if (meta.material !== undefined) item.material = meta.material;
+        if (meta.material_label) item.material_label = meta.material_label;
       });
     }
   }
@@ -932,6 +1037,7 @@ export class SceneRoot {
       start: this.data.start.label,
       furniture: this.data.furniture.map((item) => ({
         name: item.name,
+        material: item.material || '',
         x1: round(item.x1),
         y1: round(item.y1),
         x2: round(item.x2),

@@ -62,6 +62,25 @@
       <button id="btnDownload" class="wide ghost">下载当前布局 JSON</button>
     </section>
 
+    <section id="roomSection">
+      <h2>房间尺寸</h2>
+      <div class="field-row">
+        <label>宽 <input id="roomWidth" type="number" min="2" max="30" step="0.05" /></label>
+        <label>深 <input id="roomDepth" type="number" min="2" max="30" step="0.05" /></label>
+      </div>
+      <button id="btnRoomApply" class="wide ghost">应用尺寸</button>
+      <p class="tip">格数保持 7×9 不变；改小后家具自动贴边</p>
+    </section>
+
+    <section id="propSection" class="hidden">
+      <h2>选中家具</h2>
+      <div class="prop-head"><b id="propName">—</b><span id="propSize"></span></div>
+      <div class="field-row">
+        <label class="grow">材质<select id="propMaterial"></select></label>
+      </div>
+      <p class="tip" id="propTip">材质只决定穿透损耗，不改变外观</p>
+    </section>
+
     <section id="aiSection">
       <h2>AI 补全 <span class="ai-badge">NEW</span></h2>
       <div class="edit-row">

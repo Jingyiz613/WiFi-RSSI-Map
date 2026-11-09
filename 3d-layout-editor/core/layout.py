@@ -35,12 +35,17 @@ class Furniture:
     y1: float
     x2: float
     y2: float
+    material: str = ""  # 空字符串表示按家具类型自动推断
 
     def __post_init__(self) -> None:
         self.x1, self.x2 = sorted((float(self.x1), float(self.x2)))
         self.y1, self.y2 = sorted((float(self.y1), float(self.y2)))
         cleaned = " ".join(str(self.name or "家具").split())
         self.name = (cleaned or "家具")[:MAX_NAME_LEN]
+        cleaned_mat = "".join(
+            ch for ch in str(self.material or "").strip().lower() if ch.isalnum() or ch == "_"
+        )
+        self.material = cleaned_mat[:24]
 
     # ---- 几何 ----
     @property
@@ -81,7 +86,7 @@ class Furniture:
         y2 = _clamp(self.y2, 0.0, spec.height_m)
         if x2 - x1 < 0.02 or y2 - y1 < 0.02:
             return None
-        return Furniture(self.name, x1, y1, x2, y2)
+        return Furniture(self.name, x1, y1, x2, y2, self.material)
 
     def describe(self, spec: GridSpec, clearance_m: float = DEFAULT_CLEARANCE_M) -> str:
         count = len(self.cells(spec, clearance_m))
@@ -92,16 +97,20 @@ class Furniture:
 
     # ---- 序列化 ----
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "name": self.name,
             "x1": round(self.x1, 3),
             "y1": round(self.y1, 3),
             "x2": round(self.x2, 3),
             "y2": round(self.y2, 3),
         }
+        if self.material:
+            data["material"] = self.material
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], spec: GridSpec | None = None) -> "Furniture":
+        material = str(data.get("material") or "")
         if "x1" in data:
             return cls(
                 name=str(data.get("name", "家具")),
@@ -109,6 +118,7 @@ class Furniture:
                 y1=float(data.get("y1", 0.0)),
                 x2=float(data.get("x2", data["x1"])),
                 y2=float(data.get("y2", data.get("y1", 0.0))),
+                material=material,
             )
         # 兼容 v1：行列格式，转成整格矩形
         if spec is None:
@@ -119,7 +129,7 @@ class Furniture:
         col2 = int(data.get("col2", col1))
         bx1, by1, _, _ = spec.cell_bounds((row1, col1))
         _, _, bx2, by2 = spec.cell_bounds((row2, col2))
-        return cls(str(data.get("name", "家具")), bx1, by1, bx2, by2)
+        return cls(str(data.get("name", "家具")), bx1, by1, bx2, by2, material)
 
 
 @dataclass
