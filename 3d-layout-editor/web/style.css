@@ -649,6 +649,12 @@ button.wide { width: 100%; margin-top: 7px; }
 
 /* ---------- 选中家具浮动材质卡 ---------- */
 
+#btnAIRun.is-stop {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cfd8e3;
+}
+
 .tag-hidden {
   display: none !important;
 }

@@ -199,6 +199,7 @@ async function refreshLayouts() {
 async function load(file) {
   setLoading(true);
   try {
+    if (aiActive) stopAI(true);
     const data = await api(`/api/scene?file=${encodeURIComponent(file)}`);
     currentFile = file;
     history = [];
@@ -468,7 +469,37 @@ function updateAIStats(data) {
 }
 
 let aiAuto = false;
+let aiActive = false;
 let aiTimer = null;
+
+function setAIRunLabel() {
+  const runButton = $('btnAIRun');
+  if (runButton) {
+    runButton.textContent = aiActive ? '关闭补全' : '运行模型';
+    runButton.classList.toggle('is-stop', aiActive);
+  }
+}
+
+// 关闭 AI 补全，回到物理热力图
+function stopAI(silent) {
+  if (!sceneRoot) return;
+  const wasActive = aiActive;
+  aiActive = false;
+  aiAuto = false;
+  aiSeq += 1;
+  clearTimeout(aiTimer);
+  sceneRoot.clearAiHeatmap();
+  document.body.classList.remove('ai-presenting');
+  const heatToggle = $('tgHeat');
+  if (heatToggle && !heatToggle.checked) {
+    heatToggle.checked = true;
+    sceneRoot.setLayer('heatmap', true);
+  }
+  const stats = $('aiStats');
+  if (stats) stats.textContent = '跟随当前布局 · 再点一次可关闭';
+  setAIRunLabel();
+  if (!silent && wasActive) toast('已关闭 AI 补全，恢复物理热力图');
+}
 
 function scheduleAI(delay = 1400) {
   if (!aiAuto || !sceneRoot) return;
@@ -502,6 +533,8 @@ async function runAI(options = {}) {
       sceneRoot.setLayer('heatmap', false);
     }
     sceneRoot.setAiHeatmap(data);
+    aiActive = true;
+    setAIRunLabel();
     updateAIStats(data);
     document.body.classList.add('ai-presenting');
     if (!options.auto) toast('AI 补全完成，后续改动会自动跟随');
@@ -513,6 +546,7 @@ async function runAI(options = {}) {
         button.disabled = false;
         button.textContent = labels[index];
       });
+      setAIRunLabel();
     }
   }
 }
@@ -702,7 +736,10 @@ function bindUi() {
   $('btnUndo').addEventListener('click', undo);
   $('btnDelete').addEventListener('click', deleteSelected);
   $('btnDownload').addEventListener('click', download);
-  $('btnAI').addEventListener('click', () => runAI());
+  $('btnAI').addEventListener('click', () => {
+    if (aiActive) stopAI();
+    else runAI();
+  });
   $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
@@ -710,7 +747,10 @@ function bindUi() {
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
   $('btnAIFurnished')?.addEventListener('click', () => setAIMode('environment', 'furnished'));
-  $('btnAIRun')?.addEventListener('click', runAI);
+  $('btnAIRun')?.addEventListener('click', () => {
+    if (aiActive) stopAI();
+    else runAI();
+  });
   $('btnDemoLayout').addEventListener('click', () => load('layout.demo.json'));
   $('btnEmptyLayout').addEventListener('click', () => load('layout.json'));
 
