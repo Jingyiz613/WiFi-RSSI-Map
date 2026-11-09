@@ -403,6 +403,7 @@ export class SceneRoot {
     this.onHover = options.onHover || (() => {});
     this.onCommit = options.onCommit || null;
     this.onSelect = options.onSelect || null;
+    this.onSelectedFrame = options.onSelectedFrame || null;
     this.onDrag = options.onDrag || null;
     this.onDragStart = options.onDragStart || null;
     this.data = null;
@@ -743,6 +744,30 @@ export class SceneRoot {
     box.expandByScalar(0.025);
     this.hoverBox.box.copy(box);
     this.hoverBox.visible = true;
+  }
+
+  // 选中家具顶部的屏幕坐标，供 HTML 浮层跟随
+  getSelectedAnchor() {
+    if (this.selectedIndex < 0) return null;
+    const group = this.furnitureGroup.children.find(
+      (entry) => entry.userData.furniture?.index === this.selectedIndex
+    );
+    if (!group) return null;
+    group.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(group);
+    const p = new THREE.Vector3(
+      (box.min.x + box.max.x) / 2,
+      box.max.y + 0.08,
+      (box.min.z + box.max.z) / 2
+    );
+    p.project(this.camera);
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    return {
+      x: (p.x * 0.5 + 0.5) * w,
+      y: (-p.y * 0.5 + 0.5) * h,
+      visible: p.z > -1 && p.z < 1 && Math.abs(p.x) < 1.6 && Math.abs(p.y) < 1.6,
+    };
   }
 
   /* ---------- 编辑状态 ---------- */
@@ -1821,6 +1846,9 @@ export class SceneRoot {
       this._pick();
     }
     this._updateLabels();
+    if (this.onSelectedFrame && this.selectedIndex >= 0) {
+      this.onSelectedFrame(this.getSelectedAnchor());
+    }
     this.renderer.render(this.scene, this.camera);
   }
 

@@ -647,6 +647,82 @@ button.wide { width: 100%; margin-top: 7px; }
 .tag-start { border-color: rgba(90, 169, 255, 0.5); background: rgba(9, 22, 40, 0.82); }
 .tag-start .tag-title { color: var(--blue); }
 
+/* ---------- 选中家具浮动材质卡 ---------- */
+
+.item-card {
+  position: fixed;
+  z-index: 40;
+  transform: translate(-50%, -100%);
+  min-width: 190px;
+  padding: 8px 10px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 190, 255, 0.42);
+  background: rgba(9, 18, 30, 0.95);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.48);
+  transition: opacity 0.12s ease;
+}
+
+.item-card::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: rgba(9, 18, 30, 0.95);
+  border-right: 1px solid rgba(120, 190, 255, 0.42);
+  border-bottom: 1px solid rgba(120, 190, 255, 0.42);
+  transform: rotate(45deg);
+}
+
+.item-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.item-card-head b {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e6f0fb;
+}
+
+.item-card-loss {
+  font-size: 10px;
+  color: #7fb4ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.item-card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item-card-row > span {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.item-card select {
+  flex: 1;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(120, 190, 255, 0.35);
+  background: rgba(16, 30, 48, 0.92);
+  color: #dce8f6;
+}
+
+.item-card select:focus {
+  outline: none;
+  border-color: rgba(120, 190, 255, 0.8);
+}
+
 .edit-row {
   display: flex;
   gap: 6px;
@@ -705,6 +781,7 @@ body.presenting #sidebar,
 body.presenting #library,
 body.presenting #hud,
 body.presenting #hint,
+body.presenting #itemCard,
 body.presenting .select-wrap,
 body.presenting #btnSave,
 body.presenting #btnUndo,

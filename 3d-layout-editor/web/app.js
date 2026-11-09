@@ -1,4 +1,4 @@
-import { SceneRoot, setMaterialCatalog, MATERIAL_COLORS } from './scene.js';
+import { SceneRoot, setMaterialCatalog, MATERIAL_COLORS, materialLoss } from './scene.js';
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -320,6 +320,17 @@ async function loadMaterials() {
         '<option value="">自动</option>' +
         entries.map(([key, m]) => `<option value="${key}">${m.label}</option>`).join('');
     }
+    const card = $('itemCardMaterial');
+    if (card) {
+      card.innerHTML =
+        '<option value="">自动</option>' +
+        entries
+          .map(
+            ([key, m]) =>
+              `<option value="${key}">${m.label} · ${m.loss['2.4g'].toFixed(0)}/${m.loss['5g'].toFixed(0)} dB</option>`
+          )
+          .join('');
+    }
   } catch (error) {
     console.warn('材料表加载失败', error);
   }
@@ -330,6 +341,7 @@ function renderProperties(item) {
   if (!section) return;
   if (!item) {
     section.classList.add('hidden');
+    renderItemCard(null);
     return;
   }
   const wasHidden = section.classList.contains('hidden');
@@ -349,9 +361,55 @@ function renderProperties(item) {
       ? `按「${m.label}」：2.4G ${m.loss['2.4g'].toFixed(0)} dB / 5G ${m.loss['5g'].toFixed(0)} dB`
       : '自动模式：按家具类型推断材料';
   }
+  renderItemCard(item);
   if (wasHidden) {
     requestAnimationFrame(() => section.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   }
+}
+
+// 3D 场景里跟随选中家具的材质卡
+function renderItemCard(item) {
+  const card = $('itemCard');
+  if (!card) return;
+  if (!item) {
+    card.classList.add('hidden');
+    return;
+  }
+  const nameEl = $('itemCardName');
+  if (nameEl) nameEl.textContent = item.name;
+  const lossEl = $('itemCardLoss');
+  if (lossEl) {
+    const a = Math.round(materialLoss(item, '2.4g'));
+    const b = Math.round(materialLoss(item, '5g'));
+    lossEl.textContent = `${a}/${b} dB`;
+  }
+  const select = $('itemCardMaterial');
+  if (select) select.value = item.material || '';
+  card.classList.remove('hidden');
+  card.style.opacity = '0';
+  card.style.pointerEvents = 'none';
+}
+
+function positionItemCard(anchor) {
+  const card = $('itemCard');
+  if (!card || card.classList.contains('hidden')) return;
+  if (!anchor || !anchor.visible) {
+    card.style.opacity = '0';
+    card.style.pointerEvents = 'none';
+    return;
+  }
+  const cardW = card.offsetWidth || 200;
+  const cardH = card.offsetHeight || 62;
+  const gap = 10;
+  const minY = 78 + cardH; // 避开顶栏
+  const maxX = window.innerWidth - 320; // 避开右侧栏
+  const half = cardW / 2 + gap;
+  const x = Math.min(Math.max(anchor.x, half), Math.max(half, maxX - cardW / 2));
+  const y = Math.max(anchor.y, minY);
+  card.style.left = `${x}px`;
+  card.style.top = `${y}px`;
+  card.style.opacity = '1';
+  card.style.pointerEvents = 'auto';
 }
 
 async function applyFurnitureMaterial(material) {
@@ -662,6 +720,7 @@ function bindUi() {
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
   $('propMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
+  $('itemCardMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
   $('btnAIFurnished')?.addEventListener('click', () => setAIMode('environment', 'furnished'));
@@ -739,6 +798,7 @@ async function init() {
         renderProperties(item);
         if (!item) tooltip.classList.remove('show');
       },
+      onSelectedFrame: (anchor) => positionItemCard(anchor),
     });
   } catch (error) {
     setLoading(false);
