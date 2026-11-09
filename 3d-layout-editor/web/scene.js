@@ -53,6 +53,99 @@ const FURNITURE_COLORS = {
   aircon: 0xdde3ec,
 };
 
+/* ---------- 材质 ---------- */
+
+export const MATERIAL_COLORS = {
+  synthetic: 0x7f8fa9,
+  asbestos: 0xa5a39a,
+  wood_door: 0xa97b4f,
+  glass_window: 0x7fc4d8,
+  tinted_glass: 0x4f8f9e,
+  brick_120: 0xc08a6a,
+  brick_240: 0xa8543f,
+  bulletproof_glass: 0x8e6fb0,
+  concrete: 0x8f9599,
+  metal: 0xc9d2dd,
+};
+
+// 材质目录由 /api/materials 下发；未加载前的兜底映射与后端一致。
+let MATERIAL_CATALOG = {};
+let KIND_MATERIAL = {
+  sofa: 'synthetic',
+  bed: 'synthetic',
+  cabinet: 'synthetic',
+  nightstand: 'synthetic',
+  side_table: 'synthetic',
+  desk: 'synthetic',
+  table: 'synthetic',
+  chair: 'synthetic',
+  coffee_table: 'synthetic',
+  tv: 'tinted_glass',
+  tv_stand: 'synthetic',
+  fridge: 'metal',
+  washer: 'metal',
+  plant: 'synthetic',
+  aircon: 'synthetic',
+  brick_120: 'brick_120',
+  brick_240: 'brick_240',
+  wood_door: 'wood_door',
+  glass_window: 'glass_window',
+  concrete: 'concrete',
+  metal_panel: 'metal',
+  box: 'synthetic',
+  rug: 'synthetic',
+};
+
+export function setMaterialCatalog(materials, kindMaterial) {
+  if (materials) MATERIAL_CATALOG = materials;
+  if (kindMaterial) KIND_MATERIAL = kindMaterial;
+}
+
+export function itemMaterial(item) {
+  if (item.material && MATERIAL_COLORS[item.material]) return item.material;
+  return KIND_MATERIAL[item.kind] || 'synthetic';
+}
+
+function heightFactor(height) {
+  if (height <= 0.3) return 0;
+  if (height >= 1) return 1;
+  return (height - 0.3) / 0.7;
+}
+
+export function materialLoss(item, band) {
+  const material = itemMaterial(item);
+  const cat = MATERIAL_CATALOG[material];
+  const base = cat ? cat.loss[band] : 0;
+  return base * heightFactor(item.height_m || 0);
+}
+
+function materialLabel(item) {
+  const a = Math.round(materialLoss(item, '2.4g'));
+  const b = Math.round(materialLoss(item, '5g'));
+  return `${a}/${b} dB`;
+}
+
+export function materialColorHex(kind) {
+  const material = KIND_MATERIAL[kind] || 'synthetic';
+  const color = MATERIAL_COLORS[material] ?? 0x8a93a5;
+  return `#${color.toString(16).padStart(6, '0')}`;
+}
+
+const OBSTACLE_KINDS = ['brick_120', 'brick_240', 'wood_door', 'glass_window', 'concrete', 'metal_panel'];
+
+function furnitureBaseColor(item) {
+  const kind = item.kind;
+  const original = FURNITURE_COLORS[kind] ?? FURNITURE_COLORS.box;
+  // 绿植、地毯、电视屏幕保留原本外观
+  if (kind === 'plant' || kind === 'rug' || kind === 'tv') return original;
+  const manual = item.material && MATERIAL_COLORS[item.material] ? item.material : null;
+  // 自动模式下普通家具保持原色，只有障碍物按材料色显示
+  if (!manual && !OBSTACLE_KINDS.includes(kind)) return original;
+  const color = MATERIAL_COLORS[manual || KIND_MATERIAL[kind] || 'synthetic'];
+  if (color == null) return original;
+  return shade(color, (((kind || '').length * 37) % 11) / 100 - 0.05);
+}
+
 /* ---------- 程序化贴图：不依赖任何外部图片，离线可用 ---------- */
 
 function makeWoodTexture() {
@@ -176,7 +269,7 @@ function buildFurniture(item, roomW, roomD) {
   const d = Math.max(item.depth_m, 0.05);
   const h = Math.max(item.height_m, 0.02);
   const kind = item.kind;
-  const base = FURNITURE_COLORS[kind] ?? FURNITURE_COLORS.box;
+  const base = furnitureBaseColor(item);
 
   const main = standardMat(base);
   const light = standardMat(shade(base, 0.1));
@@ -766,7 +859,29 @@ export class SceneRoot {
     const item = this.data.furniture.find((f) => f.index === index);
     if (!item) return false;
     item.material = material || '';
+    this.refreshMaterials();
     return true;
+  }
+
+  /** 材质目录或单件材质变化后，重建家具外观与损耗标签，保留当前选中。 */
+  refreshMaterials() {
+    if (!this.data) return;
+    const keep = this.selectedIndex;
+    this._clearGroup(this.furnitureGroup);
+    this.pickables = [];
+    for (const tag of this.tagByIndex.values()) {
+      tag.el.remove();
+      const index = this.tags.indexOf(tag);
+      if (index >= 0) this.tags.splice(index, 1);
+    }
+    this.tagByIndex.clear();
+    this.data.furniture.forEach((item, i) => {
+      item.index = i;
+    });
+    this._buildFurniture(this.data.furniture);
+    this._buildLabels();
+    if (keep >= 0) this._select(keep);
+    else this.onSelect?.(null);
   }
 
   deleteFurniture(index) {
@@ -1214,24 +1329,8 @@ export class SceneRoot {
   }
 
   _buildBlocked(cells) {
-    const blocked = cells.filter((c) => c.blocked);
-    if (!blocked.length) return;
-    const tex = makeStripeTexture();
-    const mat = new THREE.MeshBasicMaterial({
-      map: tex, transparent: true, opacity: 0.78, depthWrite: false, side: THREE.DoubleSide,
-    });
-    const geo = new THREE.PlaneGeometry(1, 1);
-    const inst = new THREE.InstancedMesh(geo, mat, blocked.length);
-    const dummy = new THREE.Object3D();
-    blocked.forEach((cell, i) => {
-      dummy.position.set(cell.x_m - this.room.w / 2, 0.011, cell.y_m - this.room.d / 2);
-      dummy.rotation.set(-Math.PI / 2, 0, 0);
-      dummy.scale.set(this.room.cw * 0.92, this.room.cd * 0.92, 1);
-      dummy.updateMatrix();
-      inst.setMatrixAt(i, dummy.matrix);
-    });
-    inst.instanceMatrix.needsUpdate = true;
-    this.blockedGroup.add(inst);
+    // 禁行格只用于后端统计，不再在地面画斜纹，保持画面干净。
+    void cells;
   }
 
   _buildStops(stops) {
@@ -1431,7 +1530,7 @@ export class SceneRoot {
       const y = Math.min(item.height_m + 0.22, 2.1);
       const tag = this._addTag(
         item.name,
-        '',
+        materialLabel(item),
         new THREE.Vector3(item.cx - this.room.w / 2, y, item.cz - this.room.d / 2),
         'tag-furniture'
       );

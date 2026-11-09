@@ -625,6 +625,22 @@ button.wide { width: 100%; margin-top: 7px; }
 }
 .tag-title { font-weight: 600; color: #dfeaf8; }
 .tag-sub { font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag-furniture {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1.2;
+}
+.tag-furniture .tag-sub { font-size: 9px; color: rgba(176, 198, 224, 0.82); }
+.mat-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 2px;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
 .tag-ap { border-color: rgba(53, 214, 196, 0.55); background: rgba(6, 28, 28, 0.82); }
 .tag-ap .tag-title { color: var(--accent); }
 .tag-ap .tag-sub { color: rgba(53, 214, 196, 0.7); }

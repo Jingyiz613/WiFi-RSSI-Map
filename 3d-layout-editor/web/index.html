@@ -34,8 +34,6 @@
       <button id="btnUndo" class="ghost" title="撤销（Ctrl+Z）">撤销</button>
       <button id="btnAI" class="ghost" title="用 20 个测点让模型补全全图">AI 补全</button>
       <button id="btnPresent" class="ghost" title="隐藏编辑面板，适合投屏">演示</button>
-      <button id="btnShot" class="ghost" title="保存当前视角为 PNG">截图</button>
-      <button id="btnFull" class="ghost" title="全屏（F）">全屏</button>
     </div>
   </header>
 
@@ -49,17 +47,6 @@
         <button data-view="front">正视</button>
       </div>
       <button id="btnOrbit" class="wide ghost" title="空格键切换">自动环绕</button>
-    </section>
-
-    <section>
-      <h2>编辑</h2>
-      <label class="switch"><input type="checkbox" id="tgSnap" checked /><span>5 cm 网格吸附</span></label>
-      <div class="edit-row">
-        <button id="btnDemoLayout" class="ghost">示例布局</button>
-        <button id="btnEmptyLayout" class="ghost">空白房间</button>
-      </div>
-      <p class="tip">拖动家具移动；按住 <kbd>Alt</kbd> 自由微调；删除请用右侧家具库底部按钮。</p>
-      <button id="btnDownload" class="wide ghost">下载当前布局 JSON</button>
     </section>
 
     <section id="roomSection">
@@ -84,17 +71,13 @@
     <section id="aiSection">
       <h2>AI 补全 <span class="ai-badge">NEW</span></h2>
       <div class="edit-row">
-        <button id="btnAIExample" class="ghost active">示例 20 点</button>
-        <button id="btnAILayout" class="ghost">当前布局采样</button>
-      </div>
-      <div class="edit-row">
         <button id="btnAIEmpty" class="ghost active">空房间模型</button>
         <button id="btnAIFurnished" class="ghost">家具模型</button>
       </div>
       <button id="btnAIRun" class="wide primary">运行模型</button>
       <div class="ai-bar"><i></i><i></i><i></i><i></i><i></i></div>
       <div class="heat-scale"><span>弱</span><span>强</span></div>
-      <p class="tip" id="aiStats">64×76 五档分类 · 示例输入为模拟值</p>
+      <p class="tip" id="aiStats">跟随当前布局 · 拖动后自动刷新</p>
     </section>
 
     <section id="bandSection">
@@ -107,10 +90,20 @@
     </section>
 
     <section>
+      <h2>编辑</h2>
+      <label class="switch"><input type="checkbox" id="tgSnap" checked /><span>5 cm 网格吸附</span></label>
+      <div class="edit-row">
+        <button id="btnDemoLayout" class="ghost">示例布局</button>
+        <button id="btnEmptyLayout" class="ghost">空白房间</button>
+      </div>
+      <p class="tip">拖动移动，<kbd>Alt</kbd> 微调；选中后用右侧「删除」。</p>
+      <button id="btnDownload" class="wide ghost">下载当前布局 JSON</button>
+    </section>
+
+    <section>
       <h2>图层</h2>
       <label class="switch"><input type="checkbox" id="tgHeat" checked /><span>信号热力图</span></label>
       <label class="switch"><input type="checkbox" id="tgGrid" checked /><span>地面网格</span></label>
-      <label class="switch"><input type="checkbox" id="tgBlocked" checked /><span>禁行格</span></label>
       <label class="switch"><input type="checkbox" id="tgLabels" checked /><span>名称标签</span></label>
       <label class="switch"><input type="checkbox" id="tgWalls" checked /><span>房间墙体</span></label>
     </section>
@@ -130,7 +123,7 @@
     <section class="legend">
       <h2>图例</h2>
       <div><i class="sw sw-ap"></i>路由器</div>
-      <div><i class="sw sw-blocked"></i>家具 / 禁行格</div>
+      <div><i class="sw sw-blocked"></i>家具</div>
       <div class="heat-bar"></div>
       <div class="heat-scale"><span>-60 dBm 弱</span><span>强 -15 dBm</span></div>
       <p class="tip" id="heatStats">简化物理模型，非实测标定</p>

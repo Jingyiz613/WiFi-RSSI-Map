@@ -422,9 +422,12 @@ def predict_layout(payload: dict) -> dict:
     environment = str(payload.get("environment") or "empty")
     if environment not in ("empty", "furnished"):
         raise ValueError("environment 只能是 empty 或 furnished")
-    mode = str(payload.get("input") or "example")
+    mode = str(payload.get("input") or "layout")
     if mode not in ("example", "layout"):
         raise ValueError("input 只能是 example 或 layout")
+    band = str(payload.get("band") or DEFAULT_BAND)
+    if band not in BANDS:
+        raise ValueError("band 只能是 2.4g 或 5g")
 
     temp_path = None
     try:
@@ -432,7 +435,7 @@ def predict_layout(payload: dict) -> dict:
             input_path = MODEL_DIR / "example_input.csv"
         else:
             layout = Layout.from_dict(payload.get("layout") or {})
-            simulated = simulate_layout(layout)
+            simulated = simulate_layout(layout, band)
             by_cell = {(p["row"], p["column"]): p["rssi_dbm"] for p in simulated["points"]}
             rows = []
             for point_id in _read_example_ids():

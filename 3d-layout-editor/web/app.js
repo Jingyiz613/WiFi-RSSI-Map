@@ -1,4 +1,4 @@
-import { SceneRoot } from './scene.js';
+import { SceneRoot, setMaterialCatalog, MATERIAL_COLORS } from './scene.js';
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -19,7 +19,6 @@ let simulateTimer = null;
 let simulateSeq = 0;
 let lastSimulateAt = 0;
 let presenting = false;
-let aiInput = 'example';
 let aiEnvironment = 'empty';
 let aiSeq = 0;
 let band = '2.4g';
@@ -45,12 +44,12 @@ const FURNITURE_LIBRARY = [
   { name: '洗衣机', kind: 'washer', w: 0.6, d: 0.6, h: 0.92, color: '#e3e7ee' },
   { name: '绿植', kind: 'plant', w: 0.45, d: 0.45, h: 1.05, color: '#3f8f5a' },
   { name: '空调', kind: 'aircon', w: 0.9, d: 0.32, h: 1.9, color: '#dde3ec' },
-  { name: '砖墙 120', kind: 'brick_120', w: 2.0, d: 0.12, h: 2.2, color: '#8a8f99' },
-  { name: '砖墙 240', kind: 'brick_240', w: 2.0, d: 0.24, h: 2.2, color: '#767c87' },
+  { name: '砖墙 120', kind: 'brick_120', w: 2.0, d: 0.12, h: 2.2, color: '#c08a6a' },
+  { name: '砖墙 240', kind: 'brick_240', w: 2.0, d: 0.24, h: 2.2, color: '#a8543f' },
   { name: '木门', kind: 'wood_door', w: 0.9, d: 0.08, h: 2.1, color: '#a97b4f' },
   { name: '玻璃窗', kind: 'glass_window', w: 1.2, d: 0.06, h: 1.2, color: '#7fc4d8' },
-  { name: '混凝土柱', kind: 'concrete', w: 0.4, d: 0.4, h: 2.2, color: '#9aa0a6' },
-  { name: '金属板', kind: 'metal_panel', w: 1.0, d: 0.05, h: 2.0, color: '#b9c0ca' },
+  { name: '混凝土柱', kind: 'concrete', w: 0.4, d: 0.4, h: 2.2, color: '#8f9599' },
+  { name: '金属板', kind: 'metal_panel', w: 1.0, d: 0.05, h: 2.0, color: '#c9d2dd' },
 ];
 
 function toast(message) {
@@ -97,7 +96,6 @@ function furnitureTipHtml(item) {
       <span>中心</span><b>${item.cx.toFixed(2)}, ${item.cz.toFixed(2)} m</b>
       <span>高度</span><b>${item.height_m.toFixed(2)} m（估算）</b>
       <span>材质</span><b>${escapeHtml(material)}</b>
-      <span>禁行</span><b>${item.blocked_cells} 格</b>
     </div>`;
 }
 
@@ -122,17 +120,11 @@ function onHover(info) {
     tooltip.innerHTML = furnitureTipHtml(info.item);
   } else {
     const c = info.cell;
-    const state = c.blocked
-      ? c.reason === 'furniture'
-        ? `家具「${escapeHtml(c.owner || '未知')}」`
-        : '手动障碍格'
-      : '可测量';
     tooltip.innerHTML = `
       <div class="tt-title">${escapeHtml(c.label)}
-        <span class="tt-badge ${c.blocked ? 'bad' : 'ok'}">${c.blocked ? '禁行' : '可采'}</span>
+        <span class="tt-badge ok">测点</span>
       </div>
       <div class="tt-grid">
-        <span>状态</span><b>${state}</b>
         <span>行列</span><b>第 ${c.row} 行 · 第 ${c.column} 列</b>
         <span>坐标</span><b>${c.x_m.toFixed(2)}, ${c.y_m.toFixed(2)} m</b>
         ${info.heat ? `<span>预测信号</span><b>${info.heat.rssi_dbm.toFixed(1)} dBm</b>` : ''}
@@ -152,14 +144,13 @@ function updateHud(data) {
   const rows = [
     ['房间', `${room.width_m.toFixed(2)} × ${room.height_m.toFixed(2)} m`],
     ['网格', `${room.rows} × ${room.columns} 格`],
-    ['家具', `${stats.furniture_count} 件 · 挡 ${stats.furniture_cells} 格`],
-    ['可测格', `${stats.usable} 格`],
+    ['家具', `${stats.furniture_count} 件`],
     ['布局校验', problems.length ? `${problems.length} 个问题` : '通过', problems.length ? 'bad' : 'ok'],
   ];
   const heat = sceneRoot?.heatData;
   if (heat) {
-    rows.splice(3, 0, ['平均信号', `${heat.stats.mean_dbm.toFixed(1)} dBm`]);
-    rows.splice(4, 0, ['强覆盖', `${heat.stats.strong_cells} 格`]);
+    rows.splice(2, 0, ['平均信号', `${heat.stats.mean_dbm.toFixed(1)} dBm`]);
+    rows.splice(3, 0, ['强覆盖', `${heat.stats.strong_cells} 格`]);
   }
   $('hud').innerHTML = `
     <div class="hud-title">物理仿真</div>
@@ -258,6 +249,7 @@ async function runSimulate() {
     sceneRoot.setHeatmap(data);
     updateHud(sceneRoot.data);
     updateHeatLegend(data);
+    scheduleAI();
   } catch (error) {
     console.warn('仿真失败', error);
   }
@@ -295,12 +287,18 @@ async function loadMaterials() {
   try {
     const data = await api('/api/materials');
     materialData = data.materials;
+    setMaterialCatalog(data.materials, data.kind_material);
+    sceneRoot?.refreshMaterials();
+    const dot = (key) => {
+      const color = MATERIAL_COLORS[key] ?? 0x8a93a5;
+      return `<i class="mat-dot" style="background:#${color.toString(16).padStart(6, '0')}"></i>`;
+    };
     const tbody = document.querySelector('#materialTable tbody');
     if (tbody) {
-      tbody.innerHTML = Object.values(data.materials)
+      tbody.innerHTML = Object.entries(data.materials)
         .map(
-          (m) =>
-            `<tr><td>${m.label}</td><td>${m.thickness_mm}</td><td>${m.loss['2.4g'].toFixed(0)}</td><td>${m.loss['5g'].toFixed(0)}</td></tr>`
+          ([key, m]) =>
+            `<tr><td>${dot(key)}${m.label}</td><td>${m.thickness_mm}</td><td>${m.loss['2.4g'].toFixed(0)}</td><td>${m.loss['5g'].toFixed(0)}</td></tr>`
         )
         .join('');
     }
@@ -405,15 +403,11 @@ async function applyRoomSize() {
 }
 
 function setAIMode(kind, value) {
-  if (kind === 'input') {
-    aiInput = value;
-    $('btnAIExample')?.classList.toggle('active', value === 'example');
-    $('btnAILayout')?.classList.toggle('active', value === 'layout');
-  } else {
-    aiEnvironment = value;
-    $('btnAIEmpty')?.classList.toggle('active', value === 'empty');
-    $('btnAIFurnished')?.classList.toggle('active', value === 'furnished');
-  }
+  if (kind !== 'environment') return;
+  aiEnvironment = value;
+  $('btnAIEmpty')?.classList.toggle('active', value === 'empty');
+  $('btnAIFurnished')?.classList.toggle('active', value === 'furnished');
+  if (aiAuto) scheduleAI(120);
 }
 
 function updateAIStats(data) {
@@ -428,19 +422,33 @@ function updateAIStats(data) {
   if (present) present.textContent = `强覆盖 ${strong.toFixed(0)}% · 置信 ${confidence.toFixed(0)}%`;
 }
 
-async function runAI() {
+let aiAuto = false;
+let aiTimer = null;
+
+function scheduleAI(delay = 1400) {
+  if (!aiAuto || !sceneRoot) return;
+  clearTimeout(aiTimer);
+  aiTimer = setTimeout(() => runAI({ auto: true }), delay);
+}
+
+async function runAI(options = {}) {
   if (!sceneRoot) return;
+  if (!options.auto) aiAuto = true;
   const buttons = [$('btnAIRun'), $('btnAI')].filter(Boolean);
   const labels = buttons.map((button) => button.textContent);
   buttons.forEach((button) => {
     button.disabled = true;
   });
   const runButton = $('btnAIRun');
-  if (runButton) runButton.textContent = '推理中…';
+  if (runButton && !options.auto) runButton.textContent = '推理中…';
   const seq = ++aiSeq;
   try {
-    const payload = { environment: aiEnvironment, input: aiInput };
-    if (aiInput === 'layout') payload.layout = sceneRoot.getLayoutPayload();
+    const payload = {
+      environment: aiEnvironment,
+      input: 'layout',
+      band,
+      layout: sceneRoot.getLayoutPayload(),
+    };
     const data = await api('/api/predict', { method: 'POST', body: payload });
     if (seq !== aiSeq) return;
     const heatToggle = $('tgHeat');
@@ -451,7 +459,7 @@ async function runAI() {
     sceneRoot.setAiHeatmap(data);
     updateAIStats(data);
     document.body.classList.add('ai-presenting');
-    toast('AI 补全完成');
+    if (!options.auto) toast('AI 补全完成，后续改动会自动跟随');
   } catch (error) {
     if (seq === aiSeq) showError(`AI 补全失败：${error.message}`);
   } finally {
@@ -617,12 +625,12 @@ function bindUi() {
 
   const layerMap = {
     tgGrid: 'grid',
-    tgBlocked: 'blocked',
     tgLabels: 'labels',
     tgWalls: 'walls',
   };
   Object.entries(layerMap).forEach(([id, layer]) => {
     const input = $(id);
+    if (!input) return;
     input.addEventListener('change', () => sceneRoot.setLayer(layer, input.checked));
   });
 
@@ -645,11 +653,6 @@ function bindUi() {
     sceneRoot.setAutoRotate(on);
   });
 
-  $('btnShot').addEventListener('click', () => {
-    sceneRoot.screenshot();
-    toast('已保存 PNG');
-  });
-
   $('btnSave').addEventListener('click', save);
   $('btnUndo').addEventListener('click', undo);
   $('btnDelete').addEventListener('click', deleteSelected);
@@ -660,23 +663,11 @@ function bindUi() {
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
   $('propMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('btnPresent').addEventListener('click', () => togglePresent());
-  $('btnAIExample')?.addEventListener('click', () => setAIMode('input', 'example'));
-  $('btnAILayout')?.addEventListener('click', () => setAIMode('input', 'layout'));
   $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
   $('btnAIFurnished')?.addEventListener('click', () => setAIMode('environment', 'furnished'));
   $('btnAIRun')?.addEventListener('click', runAI);
   $('btnDemoLayout').addEventListener('click', () => load('layout.demo.json'));
   $('btnEmptyLayout').addEventListener('click', () => load('layout.json'));
-
-  const fullBtn = $('btnFull');
-  fullBtn.addEventListener('click', async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-    } catch {
-      toast('当前环境不支持全屏');
-    }
-  });
 
   window.addEventListener('keydown', (event) => {
     if (['SELECT', 'INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
@@ -710,7 +701,7 @@ function bindUi() {
       setActiveView(btn);
       return;
     }
-    const toggles = { g: 'tgGrid', b: 'tgBlocked', l: 'tgLabels', w: 'tgWalls', h: 'tgHeat' };
+    const toggles = { g: 'tgGrid', l: 'tgLabels', w: 'tgWalls', h: 'tgHeat' };
     if (toggles[key]) {
       const input = $(toggles[key]);
       input.checked = !input.checked;
@@ -720,11 +711,6 @@ function bindUi() {
     if (key === ' ') {
       event.preventDefault();
       orbitBtn.click();
-    } else if (key === 's') {
-      sceneRoot.screenshot();
-      toast('已保存 PNG');
-    } else if (key === 'f') {
-      fullBtn.click();
     }
   });
 }
