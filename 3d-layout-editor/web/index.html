@@ -32,6 +32,7 @@
       </label>
       <button id="btnSave" class="primary" title="保存到 layout.edited.json（Ctrl+S）">保存</button>
       <button id="btnUndo" class="ghost" title="撤销（Ctrl+Z）">撤销</button>
+      <button id="btnPresent" class="ghost" title="隐藏编辑面板，适合投屏">演示</button>
       <button id="btnShot" class="ghost" title="保存当前视角为 PNG">截图</button>
       <button id="btnFull" class="ghost" title="全屏（F）">全屏</button>
     </div>
@@ -52,12 +53,17 @@
     <section>
       <h2>编辑</h2>
       <label class="switch"><input type="checkbox" id="tgSnap" checked /><span>5 cm 网格吸附</span></label>
+      <div class="edit-row">
+        <button id="btnDemoLayout" class="ghost">示例布局</button>
+        <button id="btnEmptyLayout" class="ghost">空白房间</button>
+      </div>
       <p class="tip">拖动家具移动；按住 <kbd>Alt</kbd> 自由微调；删除请用右侧家具库底部按钮。</p>
       <button id="btnDownload" class="wide ghost">下载当前布局 JSON</button>
     </section>
 
     <section>
       <h2>图层</h2>
+      <label class="switch"><input type="checkbox" id="tgHeat" checked /><span>信号热力图</span></label>
       <label class="switch"><input type="checkbox" id="tgGrid" checked /><span>地面网格</span></label>
       <label class="switch"><input type="checkbox" id="tgBlocked" checked /><span>禁行格</span></label>
       <label class="switch"><input type="checkbox" id="tgLabels" checked /><span>名称标签</span></label>
@@ -68,7 +74,9 @@
       <h2>图例</h2>
       <div><i class="sw sw-ap"></i>路由器</div>
       <div><i class="sw sw-blocked"></i>家具 / 禁行格</div>
-      <p class="tip">禁行格按家具外扩 10 cm 安全间距计算。</p>
+      <div class="heat-bar"></div>
+      <div class="heat-scale"><span>-60 dBm 弱</span><span>强 -15 dBm</span></div>
+      <p class="tip" id="heatStats">简化物理模型，非实测标定</p>
     </section>
   </aside>
 
@@ -86,6 +94,13 @@
   <div id="hud" class="panel"></div>
 
   <div id="hint">拖动家具移动 · 拖动路由器换位 · Delete 删除 · Alt 自由微调</div>
+
+  <div id="presentLegend">
+    <div class="present-title">信号覆盖</div>
+    <div class="heat-bar"></div>
+    <div class="heat-scale"><span>-60 dBm 弱</span><span>强 -15 dBm</span></div>
+    <div class="present-stats" id="presentStats">—</div>
+  </div>
 
   <div id="tooltip"></div>
   <div id="notice" class="hidden"></div>

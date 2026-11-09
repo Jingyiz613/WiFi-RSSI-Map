@@ -5,6 +5,33 @@ const ACCENT = 0x35d6c4;
 const ACCENT_DIM = 0x1b7a72;
 const BLUE = 0x5aa9ff;
 const DANGER = 0xff5d6c;
+const HEAT_STOPS = [
+  [-60, [70, 18, 70]],
+  [-55, [140, 25, 80]],
+  [-50, [210, 45, 70]],
+  [-45, [240, 120, 55]],
+  [-40, [245, 200, 75]],
+  [-35, [130, 225, 120]],
+  [-25, [53, 214, 196]],
+  [-15, [210, 255, 245]],
+];
+
+function heatColor(value) {
+  const v = Math.max(-60, Math.min(-15, value));
+  for (let i = 0; i < HEAT_STOPS.length - 1; i++) {
+    const [low, c1] = HEAT_STOPS[i];
+    const [high, c2] = HEAT_STOPS[i + 1];
+    if (v >= low && v <= high) {
+      const t = (v - low) / (high - low);
+      const r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+      const g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+      const b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+      return `rgb(${r},${g},${b})`;
+    }
+  }
+  const last = HEAT_STOPS[HEAT_STOPS.length - 1][1];
+  return `rgb(${last[0]},${last[1]},${last[2]})`;
+}
 
 const FURNITURE_COLORS = {
   sofa: 0x6d7fa6,
@@ -71,15 +98,15 @@ function makeStripeTexture() {
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, size, size);
-  ctx.strokeStyle = 'rgba(255,93,108,0.42)';
-  ctx.lineWidth = 5;
+  ctx.strokeStyle = 'rgba(18,28,42,0.42)';
+  ctx.lineWidth = 4;
   for (let i = -size; i < size * 2; i += 16) {
     ctx.beginPath();
     ctx.moveTo(i, 0);
     ctx.lineTo(i + size, size);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(255,93,108,0.55)';
+  ctx.strokeStyle = 'rgba(18,28,42,0.5)';
   ctx.lineWidth = 3;
   ctx.strokeRect(1.5, 1.5, size - 3, size - 3);
   const tex = new THREE.CanvasTexture(canvas);
@@ -365,9 +392,11 @@ export class SceneRoot {
     this.furnitureGroup = new THREE.Group();
     this.apGroup = new THREE.Group();
     this.startGroup = new THREE.Group();
+    this.heatGroup = new THREE.Group();
     this.root.add(
       this.wallGroup, this.floorGroup, this.gridGroup, this.blockedGroup,
-      this.stopGroup, this.routeGroup, this.furnitureGroup, this.apGroup, this.startGroup
+      this.stopGroup, this.routeGroup, this.furnitureGroup, this.apGroup, this.startGroup,
+      this.heatGroup
     );
 
     // 悬停高亮（常驻，不随布局重建）
@@ -498,6 +527,7 @@ export class SceneRoot {
       const cell = this.data.cells.find((c) => c.row === row && c.column === col);
       if (cell) this._setHover(-1, cell);
       this.dragging.moved = true;
+      this.onDrag?.(null);
       return;
     }
 
@@ -736,6 +766,58 @@ export class SceneRoot {
     this.onSelect?.(null);
   }
 
+  setHeatmap(data) {
+    if (!data || !data.points || !this.room.cols) return;
+    this.heatData = data;
+    const cols = this.room.cols;
+    const rows = this.room.rows;
+    const cell = 64;
+
+    if (!this.heatCanvas) {
+      this.heatCanvas = document.createElement('canvas');
+      this.heatCtx = this.heatCanvas.getContext('2d');
+      this.heatTexture = new THREE.CanvasTexture(this.heatCanvas);
+      this.heatTexture.colorSpace = THREE.SRGBColorSpace;
+      this.heatTexture.minFilter = THREE.LinearFilter;
+      this.heatTexture.magFilter = THREE.LinearFilter;
+      const geo = new THREE.PlaneGeometry(this.room.w, this.room.d);
+      const mat = new THREE.MeshBasicMaterial({
+        map: this.heatTexture,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      this.heatMesh = new THREE.Mesh(geo, mat);
+      this.heatMesh.rotation.x = -Math.PI / 2;
+      this.heatMesh.position.y = 0.004;
+      this.heatGroup.add(this.heatMesh);
+    }
+
+    const canvas = this.heatCanvas;
+    canvas.width = cols * cell;
+    canvas.height = rows * cell;
+    const ctx = this.heatCtx;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const point of data.points) {
+      ctx.fillStyle = heatColor(point.rssi_dbm);
+      ctx.fillRect((point.column - 1) * cell, (point.row - 1) * cell, cell, cell);
+    }
+
+    if (!this.heatBlur) this.heatBlur = document.createElement('canvas');
+    const blur = this.heatBlur;
+    blur.width = canvas.width;
+    blur.height = canvas.height;
+    const bctx = blur.getContext('2d');
+    bctx.clearRect(0, 0, blur.width, blur.height);
+    bctx.filter = 'blur(20px)';
+    bctx.drawImage(canvas, 0, 0);
+    bctx.filter = 'none';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(blur, 0, 0);
+    this.heatTexture.needsUpdate = true;
+  }
+
   setCells(cells) {
     this.data.cells = cells;
     this._clearGroup(this.blockedGroup);
@@ -793,6 +875,12 @@ export class SceneRoot {
     this.apBulb = null;
     this.apRoot = null;
     this.apTag = null;
+    this.heatMesh = null;
+    this.heatTexture = null;
+    this.heatCanvas = null;
+    this.heatCtx = null;
+    this.heatBlur = null;
+    this.heatData = null;
     this.startRing = null;
     this.car = null;
     this.tags.forEach((tag) => tag.el.remove());
@@ -850,6 +938,7 @@ export class SceneRoot {
     for (const group of [
       this.floorGroup, this.wallGroup, this.gridGroup, this.blockedGroup,
       this.stopGroup, this.routeGroup, this.furnitureGroup, this.apGroup, this.startGroup,
+      this.heatGroup,
     ]) {
       this._clearGroup(group);
     }
@@ -1214,6 +1303,7 @@ export class SceneRoot {
       route: this.routeGroup,
       stops: this.stopGroup,
       walls: this.wallGroup,
+      heatmap: this.heatGroup,
       labels: null,
     };
     if (name === 'labels') {
@@ -1340,8 +1430,9 @@ export class SceneRoot {
         const col = Math.min(this.room.cols, Math.max(1, Math.floor((p.x + this.room.w / 2) / this.room.cw) + 1));
         const row = Math.min(this.room.rows, Math.max(1, Math.floor((p.z + this.room.d / 2) / this.room.cd) + 1));
         const cell = this.data.cells.find((c) => c.row === row && c.column === col);
+        const heat = this.heatData?.points?.find((p) => p.row === row && p.column === col);
         this._setHover(-1, cell);
-        this.onHover({ type: 'cell', cell, client: this.pointerClient });
+        this.onHover({ type: 'cell', cell, heat, client: this.pointerClient });
         return;
       }
     }

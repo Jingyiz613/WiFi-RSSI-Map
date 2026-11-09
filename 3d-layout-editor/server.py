@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import socket
 import sys
 import threading
@@ -142,6 +143,140 @@ def overlap_problems(layout: Layout) -> list[str]:
             if a.x1 < b.x2 - 1e-6 and b.x1 < a.x2 - 1e-6 and a.y1 < b.y2 - 1e-6 and b.y1 < a.y2 - 1e-6:
                 problems.append(f"家具「{a.name}」与「{b.name}」重叠")
     return problems[:4]
+
+
+# ---------------- 简化物理仿真：布局 -> 路径损耗 -> 热力图 ----------------
+# 参数来自资料包的华为典型障碍衰减与 ITU 材料先验，只用于展示相对变化，
+# 不是本房间的实测标定值。
+
+FREQ_MHZ = 2437.0
+TX_EIRP_DBM = 22.0
+CLUTTER_DB = 6.0
+AP_HEIGHT_M = 1.0
+RX_HEIGHT_M = 0.9
+QUALITY_THRESHOLDS = (-40.0, -35.0, -30.0, -25.0)
+QUALITY_LABELS = ("弱", "偏弱", "中", "好", "强")
+
+# 家具穿透基准损耗（dB），再按高度做折减；木头/板材参考 ITU，金属家电取高值
+PENETRATION_DB = {
+    "sofa": 5.0,
+    "bed": 6.0,
+    "cabinet": 7.0,
+    "nightstand": 3.0,
+    "side_table": 2.0,
+    "desk": 3.5,
+    "table": 3.5,
+    "chair": 2.5,
+    "coffee_table": 2.0,
+    "tv": 8.0,
+    "tv_stand": 4.0,
+    "fridge": 10.0,
+    "washer": 8.0,
+    "plant": 1.5,
+    "rug": 0.0,
+    "aircon": 6.0,
+    "box": 4.0,
+}
+
+
+def _segment_hits_rect(x1, y1, x2, y2, xmin, ymin, xmax, ymax) -> bool:
+    """Liang-Barsky：线段是否与轴对齐矩形相交。"""
+    dx = x2 - x1
+    dy = y2 - y1
+    p = (-dx, dx, -dy, dy)
+    q = (x1 - xmin, xmax - x1, y1 - ymin, ymax - y1)
+    u1, u2 = 0.0, 1.0
+    for pi, qi in zip(p, q):
+        if abs(pi) < 1e-12:
+            if qi < 0:
+                return False
+        else:
+            r = qi / pi
+            if pi < 0:
+                if r > u2:
+                    return False
+                u1 = max(u1, r)
+            else:
+                if r < u1:
+                    return False
+                u2 = min(u2, r)
+    return u1 <= u2
+
+
+def _active_loss(item, kind: str) -> float:
+    base = PENETRATION_DB.get(kind, 4.0)
+    height = max(item.height_m, 0.0)
+    if height <= 0.3:
+        return 0.0
+    factor = 1.0 if height >= 1.0 else (height - 0.3) / 0.7
+    return base * max(0.0, min(1.0, factor))
+
+
+def simulate_layout(layout: Layout) -> dict:
+    spec = layout.spec
+    ap_x, ap_y = spec.center(layout.ap)
+    points = []
+
+    for cell in spec.all_cells():
+        cx, cy = spec.center(cell)
+        dx = cx - ap_x
+        dy = cy - ap_y
+        distance = max(0.8, (dx * dx + dy * dy + (AP_HEIGHT_M - RX_HEIGHT_M) ** 2) ** 0.5)
+        fspl = 20.0 * math.log10(distance) + 20.0 * math.log10(FREQ_MHZ) - 27.55
+
+        penetration = 0.0
+        for item in layout.furniture:
+            kind, _ = classify(item.name)
+            loss = _active_loss(item, kind)
+            if loss <= 0:
+                continue
+            if _segment_hits_rect(ap_x, ap_y, cx, cy, item.x1, item.y1, item.x2, item.y2):
+                penetration += loss
+        penetration = min(penetration, 30.0)
+
+        rssi = TX_EIRP_DBM - fspl - penetration - CLUTTER_DB
+        quality = 0
+        for threshold in QUALITY_THRESHOLDS:
+            if rssi >= threshold:
+                quality += 1
+
+        points.append(
+            {
+                "row": cell[0],
+                "column": cell[1],
+                "label": spec.label(cell),
+                "x_m": round(cx, 4),
+                "y_m": round(cy, 4),
+                "distance_m": round(distance, 3),
+                "penetration_db": round(penetration, 2),
+                "rssi_dbm": round(rssi, 2),
+                "quality": quality,
+                "quality_label": QUALITY_LABELS[quality],
+            }
+        )
+
+    values = [p["rssi_dbm"] for p in points]
+    counts = [sum(1 for p in points if p["quality"] == q) for q in range(5)]
+    return {
+        "points": points,
+        "stats": {
+            "min_dbm": round(min(values), 2),
+            "max_dbm": round(max(values), 2),
+            "mean_dbm": round(sum(values) / len(values), 2),
+            "strong_cells": counts[3] + counts[4],
+            "quality_counts": counts,
+        },
+        "params": {
+            "frequency_mhz": FREQ_MHZ,
+            "tx_eirp_dbm": TX_EIRP_DBM,
+            "clutter_db": CLUTTER_DB,
+            "ap_height_m": AP_HEIGHT_M,
+            "rx_height_m": RX_HEIGHT_M,
+            "thresholds_dbm": list(QUALITY_THRESHOLDS),
+            "quality_labels": list(QUALITY_LABELS),
+            "note": "简化物理模型，用于展示布局与路由器位置对覆盖的相对影响，非实测标定。",
+        },
+    }
 
 
 def state_payload(layout: Layout, file_name: str = "") -> dict:
@@ -293,7 +428,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path not in ("/api/analyze", "/api/save"):
+        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate"):
             self._json({"error": "接口不存在"}, 404)
             return
         try:
@@ -310,6 +445,14 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(state_payload(layout))
             except Exception as exc:
                 self._json({"error": f"分析失败：{exc}"}, 500)
+            return
+
+        if parsed.path == "/api/simulate":
+            try:
+                layout = Layout.from_dict(payload)
+                self._json(simulate_layout(layout))
+            except Exception as exc:
+                self._json({"error": f"仿真失败：{exc}"}, 500)
             return
 
         # /api/save

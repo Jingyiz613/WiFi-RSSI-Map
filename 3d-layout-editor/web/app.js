@@ -15,6 +15,10 @@ let history = [];
 let analyzeSeq = 0;
 let currentFile = null;
 let selectedItem = null;
+let simulateTimer = null;
+let simulateSeq = 0;
+let lastSimulateAt = 0;
+let presenting = false;
 
 const escapeHtml = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -118,6 +122,8 @@ function onHover(info) {
         <span>状态</span><b>${state}</b>
         <span>行列</span><b>第 ${c.row} 行 · 第 ${c.column} 列</b>
         <span>坐标</span><b>${c.x_m.toFixed(2)}, ${c.y_m.toFixed(2)} m</b>
+        ${info.heat ? `<span>预测信号</span><b>${info.heat.rssi_dbm.toFixed(1)} dBm</b>` : ''}
+        ${info.heat ? `<span>穿透损耗</span><b>${info.heat.penetration_db.toFixed(1)} dB</b>` : ''}
       </div>`;
   }
   tooltip.classList.add('show');
@@ -137,6 +143,11 @@ function updateHud(data) {
     ['可测格', `${stats.usable} 格`],
     ['布局校验', problems.length ? `${problems.length} 个问题` : '通过', problems.length ? 'bad' : 'ok'],
   ];
+  const heat = sceneRoot?.heatData;
+  if (heat) {
+    rows.splice(3, 0, ['平均信号', `${heat.stats.mean_dbm.toFixed(1)} dBm`]);
+    rows.splice(4, 0, ['强覆盖', `${heat.stats.strong_cells} 格`]);
+  }
   $('hud').innerHTML = `
     <div class="hud-title">当前布局</div>
     ${rows.map(([k, v, cls]) => `<div class="row"><span>${k}</span><b class="${cls || ''}">${escapeHtml(v)}</b></div>`).join('')}
@@ -193,6 +204,7 @@ async function load(file) {
     $('layoutSelect').value = file;
     updateHud(data);
     updateNotice(data);
+    runSimulate();
   } catch (error) {
     showError(`加载失败：${error.message}`);
   } finally {
@@ -214,9 +226,56 @@ async function reanalyze() {
     sceneRoot.applyState(state);
     updateHud(sceneRoot.data);
     updateNotice(sceneRoot.data);
+    scheduleSimulate();
   } catch (error) {
     if (seq === analyzeSeq) showError(`重新计算失败：${error.message}`);
   }
+}
+
+async function runSimulate() {
+  if (!sceneRoot) return;
+  const seq = ++simulateSeq;
+  try {
+    const data = await api('/api/simulate', {
+      method: 'POST',
+      body: sceneRoot.getLayoutPayload(),
+    });
+    if (seq !== simulateSeq) return;
+    sceneRoot.setHeatmap(data);
+    updateHud(sceneRoot.data);
+    updateHeatLegend(data);
+  } catch (error) {
+    console.warn('仿真失败', error);
+  }
+}
+
+function throttleSimulate(interval = 160) {
+  const now = performance.now();
+  if (now - lastSimulateAt < interval) return;
+  lastSimulateAt = now;
+  runSimulate();
+}
+
+function scheduleSimulate(delay = 220) {
+  clearTimeout(simulateTimer);
+  simulateTimer = setTimeout(runSimulate, delay);
+}
+
+function updateHeatLegend(data) {
+  if (!data) return;
+  const text = `平均 ${data.stats.mean_dbm.toFixed(1)} dBm · 强覆盖 ${data.stats.strong_cells} 格`;
+  const el = $('heatStats');
+  if (el) el.textContent = text;
+  const present = $('presentStats');
+  if (present) present.textContent = text;
+}
+
+function togglePresent(force) {
+  presenting = typeof force === 'boolean' ? force : !presenting;
+  document.body.classList.toggle('presenting', presenting);
+  const button = $('btnPresent');
+  if (button) button.textContent = presenting ? '退出演示' : '演示';
+  sceneRoot.setView(presenting ? 'corner' : 'iso', 520);
 }
 
 function onCommit(change) {
@@ -362,6 +421,10 @@ function bindUi() {
     sceneRoot.snapStep = event.target.checked ? 0.05 : 0;
   });
 
+  $('tgHeat').addEventListener('change', (event) => {
+    sceneRoot.setLayer('heatmap', event.target.checked);
+  });
+
   const orbitBtn = $('btnOrbit');
   orbitBtn.addEventListener('click', () => {
     const on = !orbitBtn.classList.contains('active');
@@ -378,6 +441,9 @@ function bindUi() {
   $('btnUndo').addEventListener('click', undo);
   $('btnDelete').addEventListener('click', deleteSelected);
   $('btnDownload').addEventListener('click', download);
+  $('btnPresent').addEventListener('click', () => togglePresent());
+  $('btnDemoLayout').addEventListener('click', () => load('layout.demo.json'));
+  $('btnEmptyLayout').addEventListener('click', () => load('layout.json'));
 
   const fullBtn = $('btnFull');
   fullBtn.addEventListener('click', async () => {
@@ -391,6 +457,10 @@ function bindUi() {
 
   window.addEventListener('keydown', (event) => {
     if (['SELECT', 'INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+    if (event.key === 'Escape' && presenting) {
+      togglePresent(false);
+      return;
+    }
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === 'z') {
       event.preventDefault();
@@ -417,7 +487,7 @@ function bindUi() {
       setActiveView(btn);
       return;
     }
-    const toggles = { g: 'tgGrid', b: 'tgBlocked', l: 'tgLabels', w: 'tgWalls' };
+    const toggles = { g: 'tgGrid', b: 'tgBlocked', l: 'tgLabels', w: 'tgWalls', h: 'tgHeat' };
     if (toggles[key]) {
       const input = $(toggles[key]);
       input.checked = !input.checked;
@@ -444,12 +514,15 @@ async function init() {
       onHover,
       onCommit,
       onDrag: (item) => {
-        const client = sceneRoot.pointerClient;
-        if (client) {
-          tooltip.innerHTML = furnitureTipHtml(item);
-          tooltip.classList.add('show');
-          placeTooltip(client);
+        if (item) {
+          const client = sceneRoot.pointerClient;
+          if (client) {
+            tooltip.innerHTML = furnitureTipHtml(item);
+            tooltip.classList.add('show');
+            placeTooltip(client);
+          }
         }
+        throttleSimulate();
       },
       onSelect: (item) => {
         selectedItem = item;
@@ -489,6 +562,9 @@ async function init() {
 
   await load(preferred);
   setLoading(false);
+  if (new URLSearchParams(location.search).get('present') === '1') {
+    togglePresent(true);
+  }
 }
 
 init();

@@ -264,6 +264,20 @@ button.wide { width: 100%; margin-top: 7px; }
 .switch input:checked + span::before { background: rgba(53, 214, 196, 0.4); }
 .switch input:checked + span::after { left: 11px; background: var(--accent); }
 
+.heat-bar {
+  height: 8px;
+  margin: 8px 0 3px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #461246, #8c1950, #d22d46, #f07837, #f5c84b, #82e178, #35d6c4, #d2fff5);
+  opacity: 0.9;
+}
+.heat-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--muted);
+}
+
 .legend div {
   display: flex;
   align-items: center;
@@ -277,7 +291,7 @@ button.wide { width: 100%; margin-top: 7px; }
 .sw-start { background: var(--blue); border-radius: 50%; }
 .sw-route { background: linear-gradient(90deg, #3ee7d2, #1b7a72); height: 3px; border-radius: 2px; }
 .sw-stop { background: rgba(53, 214, 196, 0.55); border-radius: 50%; }
-.sw-blocked { background: repeating-linear-gradient(45deg, rgba(255, 93, 108, 0.85) 0 2px, transparent 2px 4px); }
+.sw-blocked { background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.9) 0 2px, transparent 2px 4px); border: 1px solid rgba(255, 255, 255, 0.35); }
 
 /* ---------- 家具库 ---------- */
 
@@ -439,6 +453,56 @@ button.wide { width: 100%; margin-top: 7px; }
 .tag-ap .tag-sub { color: rgba(53, 214, 196, 0.7); }
 .tag-start { border-color: rgba(90, 169, 255, 0.5); background: rgba(9, 22, 40, 0.82); }
 .tag-start .tag-title { color: var(--blue); }
+
+.edit-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 7px;
+}
+.edit-row button { flex: 1; height: 30px; }
+
+#presentLegend {
+  display: none;
+  position: fixed;
+  left: 22px;
+  bottom: 22px;
+  width: 232px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(8, 14, 24, 0.8);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  z-index: 35;
+}
+.present-title {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.present-stats {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #d5e2f2;
+  font-variant-numeric: tabular-nums;
+}
+
+body.presenting #sidebar,
+body.presenting #library,
+body.presenting #hud,
+body.presenting #hint,
+body.presenting .select-wrap,
+body.presenting #btnSave,
+body.presenting #btnUndo,
+body.presenting #btnShot,
+body.presenting .brand-text p {
+  display: none !important;
+}
+body.presenting #presentLegend { display: block; }
+body.presenting #topbar { background: none; }
 
 /* ---------- 提示与浮层 ---------- */
 
