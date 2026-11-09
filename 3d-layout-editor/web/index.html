@@ -32,6 +32,7 @@
       </label>
       <button id="btnSave" class="primary" title="保存到 layout.edited.json（Ctrl+S）">保存</button>
       <button id="btnUndo" class="ghost" title="撤销（Ctrl+Z）">撤销</button>
+      <button id="btnAI" class="ghost" title="用 20 个测点让模型补全全图">AI 补全</button>
       <button id="btnPresent" class="ghost" title="隐藏编辑面板，适合投屏">演示</button>
       <button id="btnShot" class="ghost" title="保存当前视角为 PNG">截图</button>
       <button id="btnFull" class="ghost" title="全屏（F）">全屏</button>
@@ -116,6 +117,13 @@
     <div class="heat-bar"></div>
     <div class="heat-scale"><span>-60 dBm 弱</span><span>强 -15 dBm</span></div>
     <div class="present-stats" id="presentStats">—</div>
+  </div>
+
+  <div id="presentAiLegend">
+    <div class="present-title">AI 补全 · 64×76 五档</div>
+    <div class="ai-bar"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="heat-scale"><span>弱</span><span>强</span></div>
+    <div class="present-stats" id="presentAiStats">—</div>
   </div>
 
   <div id="tooltip"></div>

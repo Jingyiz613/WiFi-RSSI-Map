@@ -286,22 +286,26 @@ function setAIMode(kind, value) {
 }
 
 function updateAIStats(data) {
-  const el = $('aiStats');
-  if (!el || !data?.stats?.class_counts) return;
+  if (!data?.stats?.class_counts) return;
   const counts = data.stats.class_counts;
   const total = counts.reduce((sum, value) => sum + value, 0) || 1;
   const strong = ((counts[3] + counts[4]) / total) * 100;
   const confidence = (data.stats.mean_confidence ?? 0) * 100;
-  el.textContent = `强覆盖 ${strong.toFixed(0)}% · 平均置信 ${confidence.toFixed(0)}% · 64×76`;
+  const el = $('aiStats');
+  if (el) el.textContent = `强覆盖 ${strong.toFixed(0)}% · 平均置信 ${confidence.toFixed(0)}% · 64×76`;
+  const present = $('presentAiStats');
+  if (present) present.textContent = `强覆盖 ${strong.toFixed(0)}% · 置信 ${confidence.toFixed(0)}%`;
 }
 
 async function runAI() {
   if (!sceneRoot) return;
-  const button = $('btnAIRun');
-  if (button) {
+  const buttons = [$('btnAIRun'), $('btnAI')].filter(Boolean);
+  const labels = buttons.map((button) => button.textContent);
+  buttons.forEach((button) => {
     button.disabled = true;
-    button.textContent = '推理中…';
-  }
+  });
+  const runButton = $('btnAIRun');
+  if (runButton) runButton.textContent = '推理中…';
   const seq = ++aiSeq;
   try {
     const payload = { environment: aiEnvironment, input: aiInput };
@@ -315,13 +319,16 @@ async function runAI() {
     }
     sceneRoot.setAiHeatmap(data);
     updateAIStats(data);
+    document.body.classList.add('ai-presenting');
     toast('AI 补全完成');
   } catch (error) {
     if (seq === aiSeq) showError(`AI 补全失败：${error.message}`);
   } finally {
-    if (seq === aiSeq && button) {
-      button.disabled = false;
-      button.textContent = '运行模型';
+    if (seq === aiSeq) {
+      buttons.forEach((button, index) => {
+        button.disabled = false;
+        button.textContent = labels[index];
+      });
     }
   }
 }
@@ -331,6 +338,16 @@ function togglePresent(force) {
   document.body.classList.toggle('presenting', presenting);
   const button = $('btnPresent');
   if (button) button.textContent = presenting ? '退出演示' : '演示';
+  if (!presenting) {
+    document.body.classList.remove('ai-presenting');
+    if (sceneRoot?.aiData) {
+      sceneRoot.clearAiHeatmap();
+      const heatToggle = $('tgHeat');
+      if (heatToggle) heatToggle.checked = true;
+      sceneRoot.setLayer('heatmap', true);
+      runSimulate();
+    }
+  }
   sceneRoot.setView(presenting ? 'corner' : 'iso', 520);
 }
 
@@ -479,7 +496,10 @@ function bindUi() {
 
   $('tgHeat').addEventListener('change', (event) => {
     sceneRoot.setLayer('heatmap', event.target.checked);
-    if (event.target.checked) sceneRoot.clearAiHeatmap();
+    if (event.target.checked) {
+      sceneRoot.clearAiHeatmap();
+      document.body.classList.remove('ai-presenting');
+    }
   });
 
   const orbitBtn = $('btnOrbit');
@@ -498,6 +518,7 @@ function bindUi() {
   $('btnUndo').addEventListener('click', undo);
   $('btnDelete').addEventListener('click', deleteSelected);
   $('btnDownload').addEventListener('click', download);
+  $('btnAI').addEventListener('click', () => runAI());
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIExample')?.addEventListener('click', () => setAIMode('input', 'example'));
   $('btnAILayout')?.addEventListener('click', () => setAIMode('input', 'layout'));
