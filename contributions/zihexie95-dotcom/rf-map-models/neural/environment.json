@@ -1,0 +1,9 @@
+{
+  "python": "3.13.14",
+  "torch": "2.14.1+cpu",
+  "numpy": "2.5.4",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+  "threads": 2,
+  "device": "cpu"
+}

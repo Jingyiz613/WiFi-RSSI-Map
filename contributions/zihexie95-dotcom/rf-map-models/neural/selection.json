@@ -1,0 +1,11 @@
+{
+  "selected_neural_model": "unet",
+  "selected_seed": 20261021,
+  "selection_rule": "architecture by mean validation RMSE across 3 seeds; seed by validation RMSE",
+  "validation_rmse_by_architecture": {
+    "autoencoder": 6.546400727062057,
+    "unet": 6.339018359251515,
+    "residual_unet": 6.670022797530048
+  },
+  "test_used_for_selection": false
+}

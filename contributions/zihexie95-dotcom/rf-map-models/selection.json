@@ -1,0 +1,14 @@
+{
+  "selected_by_validation": "pathloss_gpr",
+  "validation_rmse_db": {
+    "idw": 6.910698722682114,
+    "gpr": 6.917708833688904,
+    "pathloss": 6.266319935528278,
+    "pathloss_gpr": 6.068116572358554,
+    "autoencoder": 6.546400547027588,
+    "unet": 6.33901834487915,
+    "residual_unet": 6.670022487640381
+  },
+  "test_used_for_selection": false,
+  "status": "P74 was a validation group in earlier experiments; this is an exploratory re-split, not a new blind test."
+}

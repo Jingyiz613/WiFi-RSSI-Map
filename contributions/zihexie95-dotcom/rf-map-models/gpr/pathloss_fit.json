@@ -1,0 +1,17 @@
+{
+  "coefficients": [
+    -24.1166483008905,
+    -17.436122389899
+  ],
+  "formula": "A + slope * log10(max(distance_m,0.5))",
+  "path_loss_exponent": 1.7436122389899,
+  "fit_groups": [
+    "P16",
+    "P22",
+    "P28",
+    "P44",
+    "P64",
+    "P68"
+  ],
+  "fit_points": 372
+}

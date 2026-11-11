@@ -1,0 +1,25 @@
+{
+  "seed": 20261021,
+  "repeats": 20,
+  "budgets": [
+    6,
+    12,
+    24
+  ],
+  "groups": {
+    "validation": "P62",
+    "exploratory_test": "P74"
+  },
+  "fixed_evaluation_points_per_repeat": 20,
+  "strategies": [
+    "random",
+    "space_filling",
+    "gp_variance"
+  ],
+  "initial_points": "same 6 randomly selected pool points for all strategies",
+  "evaluation": "same 20 locations at all budgets and strategies within each repeat; never queried",
+  "model_sha256": "13dbeeadc0651dfe2b65010d60a75c7f1a33c17b142fc31d37ff012fbcd183aa",
+  "scope": "Previously inspected scenes; exploratory replay, not new blind or room-generalization evidence.",
+  "uncertainty": "Fixed kernel; posterior conditioning updates the map, not neural-network retraining.",
+  "no_claim": "No LLM was executed. No claim that adaptive selection must beat baselines."
+}

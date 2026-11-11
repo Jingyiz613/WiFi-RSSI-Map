@@ -1,0 +1,58 @@
+{
+  "split": {
+    "train": [
+      "P16",
+      "P22",
+      "P28",
+      "P44",
+      "P64",
+      "P68"
+    ],
+    "validation": [
+      "P62"
+    ],
+    "test": [
+      "P74"
+    ]
+  },
+  "seed": 20261021,
+  "room_width_m": 8.23,
+  "room_height_m": 6.95,
+  "rows": 7,
+  "columns": 9,
+  "padded_shape": [
+    8,
+    12
+  ],
+  "input_budgets": [
+    6,
+    12,
+    24
+  ],
+  "input_distributions": [
+    "uniform",
+    "clustered"
+  ],
+  "idw_smoothing_m": 0.15,
+  "mask_repeats": 10,
+  "model_seeds": [
+    20261021,
+    20261022,
+    20261023
+  ],
+  "max_epochs": 180,
+  "steps_per_epoch": 4,
+  "batch_size": 24,
+  "patience_checks": 12,
+  "validate_every": 5,
+  "lr": 0.001,
+  "weight_decay": 0.0001,
+  "threads": 2,
+  "target": "median of valid raw rssi_dbm; missing points excluded; no image/interpolation labels",
+  "generalization_group": null,
+  "excluded_groups": [
+    "P26",
+    "P49"
+  ],
+  "test_status": "P74 was a validation group in earlier experiments; this is an exploratory re-split, not a new blind test."
+}

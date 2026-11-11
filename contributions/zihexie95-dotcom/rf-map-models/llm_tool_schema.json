@@ -1,0 +1,33 @@
+{
+  "type": "function",
+  "name": "analyze_observations",
+  "description": "Predict a relative five-grade RSSI map and suggest measurements from supplied observations and known AP location. Does not read hidden reference RSSI labels.",
+  "strict": true,
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "ap": {"type": "string", "pattern": "^P[1-7][1-9]$"},
+      "observations": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 62,
+        "items": {
+          "type": "object",
+          "properties": {
+            "point_id": {"type": "string", "pattern": "^P[1-7][1-9]$"},
+            "rssi_dbm": {"type": "number", "minimum": -127, "maximum": -0.000001}
+          },
+          "required": ["point_id", "rssi_dbm"],
+          "additionalProperties": false
+        }
+      },
+      "count": {"type": "integer", "minimum": 1, "maximum": 10},
+      "excluded_points": {
+        "type": "array", "maxItems": 63,
+        "items": {"type": "string", "pattern": "^P[1-7][1-9]$"}
+      }
+    },
+    "required": ["ap", "observations", "count", "excluded_points"],
+    "additionalProperties": false
+  }
+}
