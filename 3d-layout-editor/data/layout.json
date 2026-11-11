@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "room": {
+    "rows": 7,
+    "columns": 9,
+    "width_m": 8.23,
+    "height_m": 6.95
+  },
+  "clearance_m": 0.1,
+  "ap": "P48",
+  "start": "P11",
+  "furniture": [],
+  "manual_blocked": []
+}
