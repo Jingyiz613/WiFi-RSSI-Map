@@ -17,6 +17,13 @@ layout.json
 route_preview.png
 route_preview.json
 
+# 手动采集结果（可能含真实 SSID/BSSID）
+manual_survey.csv
+manual_survey.json
+
+# ESP32-C6 本地 Wi-Fi 凭据
+firmware/Esp32C6Rssi/secrets.h
+
 # 系统文件
 Thumbs.db
 desktop.ini
