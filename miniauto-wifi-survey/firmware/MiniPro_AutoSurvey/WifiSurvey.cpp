@@ -85,6 +85,16 @@ void handleCommand(const String& line) {
 
 void wifiSurveySetup() {
   serialLine.reserve(512);
+  WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_CONNECTED) {
+      Serial.println("[WIFI-DIAG] Associated with AP");
+    } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+      Serial.println("[WIFI-DIAG] Obtained IP");
+    } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+      Serial.printf("[WIFI-DIAG] Disconnected reason=%u\n",
+                    static_cast<unsigned>(info.wifi_sta_disconnected.reason));
+    }
+  });
   WiFi.setHostname("minipro-rssi");
   WiFi.persistent(true);
   WiFi.mode(WIFI_STA);
