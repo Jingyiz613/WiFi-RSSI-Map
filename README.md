@@ -113,6 +113,16 @@ python -m venv .venv
 
 双击 `3d-layout-editor/start.bat`，或在仓库根目录运行 `python 3d-layout-editor/server.py`，浏览器会自动打开。详细说明见 [`3d-layout-editor/README.md`](3d-layout-editor/README.md)。
 
+## miniAuto Wi-Fi 自动采集
+
+[`miniauto-wifi-survey/`](miniauto-wifi-survey/) 是配合采集节点和小车使用的 Wi-Fi RSSI 走测模块：在米制房间布局上标记家具与禁行格，自动生成避障路线，支持电脑在线 HTTP 采集，也支持 USB 下发任务后拔线离线采集。输出数据沿用仓库现有的原始读数、点位统计和布局字段。
+
+- 快速入门与硬件要求：[模块 README](miniauto-wifi-survey/README.md)
+- 在线采集：[使用说明](miniauto-wifi-survey/docs/使用说明.md)
+- 不能上网的被测网络：[离线采集说明](miniauto-wifi-survey/docs/离线采集说明.md)
+- 烧录前先运行 `tools/flash.ps1 -Identify` 核对芯片；首次采集前必须完成方向和距离校准。
+- 当前避障依据手工标记的禁行格，不等同于带定位建图的自主导航；运行时应清空路线杂物并全程看护。
+
 ## 重要限制
 
 - P49/P26已重复使用，目前仅为固定前后对照，独立性有限；P64也反复用于模型选择，不是新独立测试。
