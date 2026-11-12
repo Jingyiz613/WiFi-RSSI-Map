@@ -1,6 +1,6 @@
 # MiniAuto Wi-Fi 采集系统
 
-让 miniAuto 麦克纳姆轮小车按规划路线自动行驶，并在房间每个网格点上采集路由器 RSSI，最后生成可直接用于热力图的数据。
+让采集节点按规划路线到达房间网格点并读取路由器 RSSI，最后生成可直接用于热力图的数据。既支持 MiniPro 小车自动行驶，也支持用 ESP32-C6 开发板人工逐点搬移。
 
 支持两种运行方式，按被测网络的条件选：
 
@@ -9,7 +9,16 @@
 | **在线模式** | 是 | 被测网络能上网，或电脑有第二个网口 |
 | **离线模式** | 不需要 | 被测网络不能上网，电脑要一直保持在线 |
 
-## 四个核心能力
+## 两种采集载体
+
+| 载体 | 特点 | 适用场景 |
+|---|---|---|
+| **MiniPro 自动小车** | 编码器定距、BFS 避障、支持在线与离线任务 | 场地可控、需要自动重复走测 |
+| **ESP32-C6 开发板** | 人工放到测点，电脑逐点采样，不依赖电机与导航 | 小车未校准、环境复杂，或先验证测量数据 |
+
+ESP32-C6 方案的完整步骤见 [docs/ESP32-C6手动采集.md](docs/ESP32-C6手动采集.md)。
+
+## 核心能力
 
 | 需求 | 实现 |
 |---|---|
@@ -17,6 +26,7 @@
 | 小车自动行驶 | 编码器定距 + BFS 避障蛇形路线，走到每个格子中心 |
 | 烧录到小车 | `tools/flash.ps1` 一键烧录（串口自动识别 + 芯片校验） |
 | 完全离线采集 | USB 下发任务 → 拔线 → 小车自己跑完 → 插线取数据 |
+| 手动搬移采集 | ESP32-C6 放到提示点位，电脑采样并逐点落盘，默认脱敏 SSID/BSSID |
 | 自定义家具 | 鼠标拖动框选任意尺寸矩形家具，按安全间距判定禁行格 |
 
 ## 目录结构
@@ -24,12 +34,14 @@
 ```
 miniauto-wifi-survey/
 ├── 启动控制台.bat              双击启动图形界面
+├── 启动手动采集.bat            ESP32-C6 逐点手动采集
 ├── layout.json                当前房间布局（界面自动保存）
 ├── layout.example.json        带家具的布局示例
 ├── host/
 │   ├── survey_gui.py          图形界面（选点 + 预览 + 在线/离线采集）
 │   ├── survey_cli.py          在线模式命令行入口
 │   ├── survey_offline.py      离线模式：下发任务 / 校准 / 导出结果
+│   ├── survey_manual.py       ESP32-C6 手动搬移采集
 │   ├── layout.py              米制家具模型、格子判定、JSON 存取、冲突校验
 │   ├── route_planner.py       网格建模、BFS 避障、蛇形路线
 │   ├── route_plot.py          路线预览图
@@ -38,19 +50,22 @@ miniauto-wifi-survey/
 │   ├── provision_wifi.py      USB 串口配网
 │   └── console.py             Windows 控制台中文编码修正
 ├── firmware/
-│   ├── MiniPro_AutoSurvey/    ESP32 Arduino 工程源码
-│   └── bin/                   已编译固件（4 个 .bin）
+│   ├── MiniPro_AutoSurvey/    MiniPro 小车 Arduino 工程
+│   ├── Esp32C6Rssi/           ESP32-C6 RSSI 探针固件
+│   └── bin/                   MiniPro 已编译固件
 ├── tools/
 │   ├── flash.ps1              一键烧录
 │   ├── build.ps1              arduino-cli 编译
 │   ├── setup_env.ps1          创建 Python 环境
 │   └── py.cmd                 自动挑选可用的 Python 解释器
 ├── tests/
-│   ├── test_offline.py        离线测试（41 项）
-│   └── test_layout.py         家具布局测试（16 项）
+│   ├── test_offline.py        离线测试
+│   ├── test_layout.py         家具布局测试
+│   └── test_manual_survey.py  ESP32-C6 手动采集测试
 ├── docs/
 │   ├── 使用说明.md             在线模式操作手册
-│   └── 离线采集说明.md         离线模式操作手册
+│   ├── 离线采集说明.md         离线模式操作手册
+│   └── ESP32-C6手动采集.md     C6 手动采集操作手册
 └── requirements.txt
 ```
 
@@ -114,6 +129,17 @@ tools\py.cmd host\survey_offline.py dump --ap P68
 详细说明见 [docs/离线采集说明.md](docs/离线采集说明.md)。
 
 小车必须放在起点格（默认 P11），车头朝向 P21 方向（行号增大的方向）。
+
+### ESP32-C6 手动搬移采集
+
+如果使用 ESP32-C6 开发板而不是自动小车：
+
+1. 按 [docs/ESP32-C6手动采集.md](docs/ESP32-C6手动采集.md) 编译并烧录固件；
+2. 复制 `firmware\Esp32C6Rssi\secrets.example.h` 为同目录下的 `secrets.h` 并填写 Wi-Fi；
+3. 双击 `启动手动采集.bat`，输入串口打印的节点地址；
+4. 按屏幕提示逐点搬移开发板并采样，输出 `manual_survey.csv/json`。
+
+批处理会用 `tools\py.cmd` 自动选择 Python，默认隐藏 SSID/BSSID，并且每个点采完立即落盘。
 
 ### 5. 标记家具（可选）
 
@@ -193,6 +219,8 @@ tools\py.cmd host\survey_offline.py dump --ap P68
 
 运行前必须清空路线上的杂物，并留出车身宽度的净空。人员需在旁看护，能随时切断动力电源。
 
+ESP32-C6 手动搬移模式不使用电机控制，但测点位置由人员摆放决定；应尽量保持同一高度，并按提示对准格子中心，否则会把位置误差带入热力图。
+
 ## 硬件参数
 
 当前固件按以下参数编译。如果你的小车不同，改 `firmware/MiniPro_AutoSurvey/FactoryControl.cpp` 顶部常量后用 `tools/build.ps1` 重新编译：
@@ -206,6 +234,17 @@ tools\py.cmd host\survey_offline.py dump --ap P68
 | 轮径 | 0.065 m |
 | RSSI 端口 | 62587 |
 | 离线存储 | NVS，最多 160 步 × 32 次采样 |
+
+ESP32-C6 采集端：
+
+| 参数 | 值 |
+|---|---|
+| 主控 | ESP32-C6 Dev Module（Arduino core 3.x） |
+| 频段 | 2.4GHz STA |
+| RSSI 端口 | 62587 |
+| 串口 | 115200，发送 `STATUS` 查看状态 |
+| Wi-Fi 配置 | 同目录 `secrets.h`，模板为 `secrets.example.h` |
+| 特殊依赖 | 无电机、编码器或额外传感器 |
 
 ## 重新编译固件
 
