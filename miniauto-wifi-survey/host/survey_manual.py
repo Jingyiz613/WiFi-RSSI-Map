@@ -19,7 +19,7 @@ import statistics
 import sys
 import time
 import urllib.request
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -101,7 +101,7 @@ def save_results(out_csv: Path, out_json: Path, settings: dict, rows: list[dict]
 
     safe_settings = dict(settings)
     if safe_settings.get("redact") and safe_settings.get("layout"):
-        safe_settings["layout"] = Path(safe_settings["layout"]).name
+        safe_settings["layout"] = PureWindowsPath(safe_settings["layout"]).name
     payload = {"settings": safe_settings, "rows": safe_rows}
     out_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 

@@ -1,5 +1,7 @@
 # MiniAuto Wi-Fi 采集系统
 
+[![miniAuto tests](https://github.com/Jingyiz613/WiFi-RSSI-Map/actions/workflows/miniauto-tests.yml/badge.svg?branch=main)](https://github.com/Jingyiz613/WiFi-RSSI-Map/actions/workflows/miniauto-tests.yml)
+
 让采集节点按规划路线到达房间网格点并读取路由器 RSSI，最后生成可直接用于热力图的数据。既支持 MiniPro 小车自动行驶，也支持用 ESP32-C6 开发板人工逐点搬移。
 
 支持两种运行方式，按被测网络的条件选：
