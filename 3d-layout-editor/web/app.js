@@ -218,6 +218,67 @@ async function load(file) {
   }
 }
 
+/* ---------- 拍照识别 ---------- */
+
+function showPhotoWelcome() {
+  $('photoWelcome')?.classList.remove('hidden');
+}
+
+function hidePhotoWelcome() {
+  $('photoWelcome')?.classList.add('hidden');
+}
+
+function pickPhoto() {
+  $('photoInput')?.click();
+}
+
+function readFileDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('读取图片失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressPhoto(file, maxDim = 1280, quality = 0.82) {
+  const dataUrl = await readFileDataUrl(file);
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('图片解析失败'));
+    el.src = dataUrl;
+  });
+  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+async function onPhotoPicked(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    setLoading(true);
+    const image = await compressPhoto(file);
+    const data = await api('/api/recognize', { method: 'POST', body: { image, mime: 'image/jpeg' } });
+    await refreshLayouts();
+    await load(data.file);
+    hidePhotoWelcome();
+    const names = (data.items || []).map((it) => it.name).filter(Boolean);
+    toast(names.length ? `已识别 ${names.length} 件家具：${names.join('、')}` : '识别完成，未发现明确家具');
+  } catch (error) {
+    showError(`识别失败：${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
 /* ---------- 编辑 ---------- */
 
 async function reanalyze() {
@@ -705,6 +766,8 @@ function bindUi() {
   const layerMap = {
     tgGrid: 'grid',
     tgLabels: 'labels',
+    tgLabelName: 'label-name',
+    tgLabelLoss: 'label-loss',
     tgWalls: 'walls',
   };
   Object.entries(layerMap).forEach(([id, layer]) => {
@@ -739,6 +802,15 @@ function bindUi() {
   $('btnAI').addEventListener('click', () => {
     if (aiActive) stopAI();
     else runAI();
+  });
+  $('btnPhoto')?.addEventListener('click', pickPhoto);
+  $('photoInput')?.addEventListener('change', onPhotoPicked);
+  $('btnPhotoWelcome')?.addEventListener('click', pickPhoto);
+  $('btnPhotoSkip')?.addEventListener('click', () => {
+    hidePhotoWelcome();
+    const demo = layouts.find((item) => item.file === 'layout.demo.json');
+    if (demo) load(demo.file);
+    else if (layouts[0]) load(layouts[0].file);
   });
   $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
@@ -852,13 +924,15 @@ async function init() {
   }
 
   const wanted = new URLSearchParams(location.search).get('layout');
-  const preferred =
+  const initial =
     layouts.find((item) => item.file === wanted)?.file ||
     layouts.find((item) => item.file === 'layout.json')?.file ||
     layouts[0].file;
 
-  await load(preferred);
+  await load(initial);
   setLoading(false);
+  // 进入页面默认进入「拍照」流程，样例布局从上方下拉框选择
+  if (!wanted) showPhotoWelcome();
   if (new URLSearchParams(location.search).get('present') === '1') {
     togglePresent(true);
   }

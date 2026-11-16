@@ -5,3 +5,4 @@ __pycache__/
 data/layout.edited.json
 .DS_Store
 Thumbs.db
+local_config.json

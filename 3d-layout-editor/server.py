@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import json
 import math
@@ -69,7 +70,7 @@ KIND_TABLE = (
     (("床", "bed"), "bed", 0.56),
     (("椅", "chair", "凳", "stool"), "chair", 0.95),
     (("桌", "desk", "table"), "desk", 0.75),
-    (("衣柜", "wardrobe", "柜", "cabinet", "书架", "shelf"), "cabinet", 1.85),
+    (("衣柜", "wardrobe", "柜", "cabinet", "书架", "shelf", "置物架", "架子", "储物"), "cabinet", 1.85),
     (("冰箱", "fridge"), "fridge", 1.82),
     (("洗衣机", "washer"), "washer", 0.92),
     (("空调", "aircon"), "aircon", 1.9),
@@ -85,6 +86,188 @@ def classify(name: str) -> tuple[str, float]:
         if any(k in text for k in keys):
             return kind, height
     return "box", 0.75
+
+
+# 家具占地尺寸（宽×深，米）。AI 只给类型和方位，尺寸用常见默认值。
+FURNITURE_SIZE: dict[str, tuple[float, float]] = {
+    "sofa": (2.2, 0.9),
+    "coffee_table": (1.1, 0.6),
+    "table": (1.5, 0.9),
+    "chair": (0.5, 0.5),
+    "bed": (1.8, 2.0),
+    "cabinet": (1.5, 0.6),
+    "fridge": (0.7, 0.7),
+    "tv_stand": (1.8, 0.45),
+    "tv": (1.2, 0.12),
+    "desk": (1.3, 0.6),
+    "nightstand": (0.5, 0.4),
+    "side_table": (0.5, 0.4),
+    "plant": (0.4, 0.4),
+    "rug": (2.0, 1.5),
+    "washer": (0.6, 0.6),
+    "aircon": (0.8, 0.3),
+    "box": (0.6, 0.5),
+}
+
+# AI 识别出的中文名 -> kind，比 classify 更宽松，覆盖「置物架」「工作台」等词。
+_AI_KIND_KEYWORDS = (
+    (("床头柜", "nightstand"), "nightstand"),
+    (("边几", "side table"), "side_table"),
+    (("沙发", "sofa", "couch"), "sofa"),
+    (("茶几", "coffee"), "coffee_table"),
+    (("餐桌", "dining", "饭桌"), "table"),
+    (("电视柜", "tv stand"), "tv_stand"),
+    (("电视", "tv", "屏幕", "screen"), "tv"),
+    (("床", "bed"), "bed"),
+    (("椅", "chair", "凳", "stool"), "chair"),
+    (("桌", "desk", "会议", "工作台"), "desk"),
+    (("衣柜", "wardrobe", "柜", "cabinet", "书架", "shelf", "置物架", "储物", "架子"), "cabinet"),
+    (("冰箱", "fridge"), "fridge"),
+    (("洗衣机", "washer"), "washer"),
+    (("空调", "aircon"), "aircon"),
+    (("绿植", "plant", "花", "盆栽"), "plant"),
+    (("地毯", "rug", "carpet"), "rug"),
+    (("箱", "box", "柜子"), "box"),
+)
+
+
+def _ai_kind(name: str) -> str:
+    text = str(name or "").lower()
+    for keys, kind in _AI_KIND_KEYWORDS:
+        if any(k in text for k in keys):
+            return kind
+    return "box"
+
+
+def _place_rect(position: str, w: float, d: float, room_w: float, room_h: float) -> tuple[float, float]:
+    """按方位计算家具左上角坐标 (x1, y1)。原点在房间左上角，x 向右、y 向下。"""
+    pos = position or ""
+    margin = 0.2
+    cx = room_w / 2
+    cy = room_h / 2
+    if "中央" not in pos and "中间" not in pos and "正中" not in pos:
+        if "左" in pos:
+            cx = margin + w / 2
+        elif "右" in pos:
+            cx = room_w - margin - w / 2
+        if "上" in pos:
+            cy = margin + d / 2
+        elif "下" in pos:
+            cy = room_h - margin - d / 2
+    x1 = max(0.0, min(cx - w / 2, room_w - w))
+    y1 = max(0.0, min(cy - d / 2, room_h - d))
+    return round(x1, 3), round(y1, 3)
+
+
+def _rect_overlaps(a: dict, b: dict, pad: float = 0.08) -> bool:
+    return not (
+        a["x2"] + pad <= b["x1"] or b["x2"] + pad <= a["x1"]
+        or a["y2"] + pad <= b["y1"] or b["y2"] + pad <= a["y1"]
+    )
+
+
+def ai_to_layout(parsed: dict) -> dict:
+    """把 AI 识别结果（room_type/estimated_room/items）转成 layout.json 结构。"""
+    room = parsed.get("estimated_room") or {}
+    try:
+        width = max(2.0, min(30.0, float(room.get("width_m") or 8.0)))
+        depth = max(2.0, min(30.0, float(room.get("depth_m") or 6.0)))
+    except (TypeError, ValueError):
+        width, depth = 8.0, 6.0
+
+    furniture: list[dict] = []
+    for raw in parsed.get("items") or []:
+        name = " ".join(str(raw.get("name") or "").split())
+        if not name:
+            continue
+        kind = _ai_kind(name)
+        w, d = FURNITURE_SIZE.get(kind, (0.6, 0.5))
+        x1, y1 = _place_rect(str(raw.get("position") or ""), w, d, width, depth)
+
+        attempts = 0
+        while attempts < 12:
+            rect = {"x1": x1, "y1": y1, "x2": round(x1 + w, 3), "y2": round(y1 + d, 3)}
+            if not any(_rect_overlaps(rect, f) for f in furniture):
+                break
+            y1 = round(y1 + 0.25, 3)
+            if y1 + d > depth - 0.1:
+                y1 = 0.2
+                x1 = round(x1 + 0.3, 3)
+            attempts += 1
+
+        furniture.append(
+            {
+                "name": name[:16],
+                "x1": round(x1, 3),
+                "y1": round(y1, 3),
+                "x2": round(x1 + w, 3),
+                "y2": round(y1 + d, 3),
+            }
+        )
+
+    return {
+        "version": 2,
+        "room": {
+            "rows": 7,
+            "columns": 9,
+            "width_m": round(width, 2),
+            "height_m": round(depth, 2),
+        },
+        "clearance_m": 0.1,
+        "ap": "P48",
+        "start": "P11",
+        "furniture": furniture,
+        "manual_blocked": [],
+    }
+
+
+def _load_ai_config() -> dict:
+    """读取外接 AI 的本地配置（不进 git），缺失时给出可读错误。"""
+    config_path = ROOT / "local_config.json"
+    if not config_path.is_file():
+        raise RuntimeError("未配置 AI 识别：缺少 local_config.json（需包含 dashscope_api_key）")
+    try:
+        with config_path.open(encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"读取 local_config.json 失败：{exc}") from exc
+
+
+def recognize_photo(payload: dict) -> dict:
+    """接收 base64 图片，调外接视觉模型识别，返回生成的布局文件信息。"""
+    image_b64 = str(payload.get("image") or "")
+    mime = str(payload.get("mime") or "image/jpeg")
+    if "," in image_b64 and image_b64.startswith("data:"):
+        head, image_b64 = image_b64.split(",", 1)
+        if ";" in head:
+            mime = head.split(":")[1].split(";")[0]
+    if not image_b64:
+        raise ValueError("缺少图片数据")
+    try:
+        data = base64.b64decode(image_b64)
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"图片 base64 解码失败：{exc}") from exc
+    if not data:
+        raise ValueError("图片数据为空")
+
+    import recognize  # 延迟加载：只有用到识别才 import
+
+    result = recognize.recognize_bytes(data, mime, _load_ai_config())
+    parsed = result.get("parsed") or {}
+    layout_dict = ai_to_layout(parsed)
+
+    file_name = "layout.recognized.json"
+    Layout.from_dict(layout_dict).save(DATA / file_name)
+
+    return {
+        "ok": True,
+        "file": file_name,
+        "layout": layout_dict,
+        "room_type": parsed.get("room_type"),
+        "estimated_room": parsed.get("estimated_room"),
+        "items": parsed.get("items") or [],
+        "usage": result.get("usage", {}),
+    }
 
 
 def _cell_point(spec, cell) -> tuple[float, float]:
@@ -584,7 +767,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_message(self, fmt: str, *args) -> None:  # 安静一点
-        if "/api/" in (args[0] if args else ""):
+        first = str(args[0]) if args else ""
+        if "/api/" in first:
             super().log_message(fmt, *args)
 
     def _json(self, payload: dict, status: int = 200) -> None:
@@ -622,7 +806,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate", "/api/predict"):
+        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate", "/api/predict", "/api/recognize"):
             self._json({"error": "接口不存在"}, 404)
             return
         try:
@@ -631,6 +815,13 @@ class Handler(SimpleHTTPRequestHandler):
             payload = json.loads(raw.decode("utf-8"))
         except Exception as exc:
             self._json({"error": f"请求体解析失败：{exc}"}, 400)
+            return
+
+        if parsed.path == "/api/recognize":
+            try:
+                self._json(recognize_photo(payload))
+            except Exception as exc:
+                self._json({"error": f"识别失败：{exc}"}, 500)
             return
 
         if parsed.path == "/api/analyze":
