@@ -44,6 +44,8 @@
       <button id="btnSave" class="primary" title="保存到 layout.edited.json（Ctrl+S）">保存</button>
       <button id="btnUndo" class="ghost" title="撤销（Ctrl+Z）">撤销</button>
       <button id="btnAI" class="ghost" title="用 20 个测点让模型补全全图">AI 补全</button>
+      <button id="btnPhoto" class="ghost" title="拍照或上传房间照片，AI 识别家具并自动生成布局">拍照生成</button>
+      <input type="file" id="photoInput" accept="image/*" hidden />
       <button id="btnPresent" class="ghost" title="隐藏编辑面板，适合投屏">演示</button>
     </div>
   </header>
@@ -113,7 +115,10 @@
       <label class="switch"><input type="checkbox" id="tgHeat" checked /><span>信号热力图</span></label>
       <label class="switch"><input type="checkbox" id="tgGrid" checked /><span>地面网格</span></label>
       <label class="switch"><input type="checkbox" id="tgLabels" checked /><span>名称标签</span></label>
+      <label class="switch sub"><input type="checkbox" id="tgLabelName" checked /><span>家具名称</span></label>
+      <label class="switch sub"><input type="checkbox" id="tgLabelLoss" checked /><span>衰减率</span></label>
       <label class="switch"><input type="checkbox" id="tgWalls" checked /><span>房间墙体</span></label>
+      <p class="tip">家具名称 / 衰减率可单独隐藏，精简标签显示</p>
     </section>
 
     <section id="materialSection">
@@ -174,6 +179,15 @@
   <div id="tooltip"></div>
   <div id="notice" class="hidden"></div>
   <div id="toast" class="hidden"></div>
+
+  <div id="photoWelcome" class="photo-welcome hidden">
+    <div class="photo-welcome-card">
+      <h2>拍照生成 3D 布局</h2>
+      <p>拍一张或上传一张房间照片，AI 自动识别家具并生成立体布局</p>
+      <button id="btnPhotoWelcome" class="primary" type="button">拍照 / 上传照片</button>
+      <button id="btnPhotoSkip" class="ghost" type="button">先用样例布局</button>
+    </div>
+  </div>
 
   <div id="loading">
     <div class="spinner"></div>
