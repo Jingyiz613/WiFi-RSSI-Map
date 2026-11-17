@@ -906,7 +906,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="miniAuto 3D 布局编辑器")
     parser.add_argument("--port", type=int, default=0, help="固定端口，0 表示自动选择")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址，0.0.0.0 表示允许局域网访问")
-    parser.add_argument("--layout", default="layout.json", help="默认加载的布局文件")
+    parser.add_argument("--layout", default="", help="默认加载的布局文件，留空则进入拍照流程")
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
     args = parser.parse_args()
 
@@ -921,14 +921,15 @@ def main() -> None:
     port = args.port or pick_port(host=host)
     handler = partial(Handler, directory=str(WEB))
     server = ThreadingHTTPServer((host, port), handler)
-    url = f"http://127.0.0.1:{port}/?layout={args.layout}"
+    url = f"http://127.0.0.1:{port}/?layout={args.layout}" if args.layout else f"http://127.0.0.1:{port}/"
 
     print("=" * 60)
     print("  miniAuto Wi-Fi 采集系统 · 3D 布局编辑器")
     print("=" * 60)
     print(f"  地址：{url}")
     if shared:
-        print(f"  共享：http://{lan_address()}:{port}/?layout={args.layout}")
+        shared_url = f"http://{lan_address()}:{port}/?layout={args.layout}" if args.layout else f"http://{lan_address()}:{port}/"
+        print(f"  共享：{shared_url}")
         print("        （同一局域网/Wi-Fi 的同伴用这个地址；首次会弹防火墙提示，请允许）")
     print(f"  数据：{DATA}")
     print("  操作：拖动家具移动，Alt 自由移动，Ctrl+Z 撤销")
