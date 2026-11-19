@@ -64,34 +64,40 @@ export const MATERIAL_COLORS = {
   bulletproof_glass: 0x8e6fb0,
   concrete: 0x8f9599,
   metal: 0xc9d2dd,
+  wood: 0xa97b4f,
+  fabric: 0x8b95a8,
+  leather: 0x6d5a4a,
+  glass: 0x9fd8e6,
+  plastic: 0xc0c8d4,
+  stone: 0x9a9a9a,
 };
 
 // 材质目录由 /api/materials 下发；未加载前的兜底映射与后端一致。
 let MATERIAL_CATALOG = {};
 let KIND_MATERIAL = {
-  sofa: 'synthetic',
-  bed: 'synthetic',
-  cabinet: 'synthetic',
-  nightstand: 'synthetic',
-  side_table: 'synthetic',
-  desk: 'synthetic',
-  table: 'synthetic',
-  chair: 'synthetic',
-  coffee_table: 'synthetic',
-  tv: 'tinted_glass',
-  tv_stand: 'synthetic',
+  sofa: 'fabric',
+  bed: 'fabric',
+  cabinet: 'wood',
+  nightstand: 'wood',
+  side_table: 'wood',
+  desk: 'wood',
+  table: 'wood',
+  chair: 'wood',
+  coffee_table: 'wood',
+  tv: 'glass',
+  tv_stand: 'wood',
   fridge: 'metal',
   washer: 'metal',
-  plant: 'synthetic',
-  aircon: 'synthetic',
+  plant: 'plastic',
+  aircon: 'plastic',
   brick_120: 'brick_120',
   brick_240: 'brick_240',
   wood_door: 'wood_door',
   glass_window: 'glass_window',
   concrete: 'concrete',
   metal_panel: 'metal',
-  box: 'synthetic',
-  rug: 'synthetic',
+  box: 'plastic',
+  rug: 'fabric',
 };
 
 export function setMaterialCatalog(materials, kindMaterial) {
@@ -263,8 +269,11 @@ function addCylinder(parent, rTop, rBottom, h, material, x = 0, y = 0, z = 0, se
 
 function buildFurniture(item, roomW, roomD) {
   const group = new THREE.Group();
-  const w = Math.max(item.width_m, 0.05);
-  const d = Math.max(item.depth_m, 0.05);
+  const angle = item.angle || 0;
+  // 占据矩形是旋转后的包围盒；还原「原始宽深」用于生成家具造型
+  let w = Math.max(item.width_m, 0.05);
+  let d = Math.max(item.depth_m, 0.05);
+  if (angle % 180 === 90) [w, d] = [d, w];
   const h = Math.max(item.height_m, 0.02);
   const kind = item.kind;
   const base = furnitureBaseColor(item);
@@ -384,6 +393,7 @@ function buildFurniture(item, roomW, roomD) {
     addBox(group, w * 0.96, 0.03, d * 0.96, light, 0, h + 0.015, 0);
   }
 
+  group.rotation.y = (angle * Math.PI) / 180;
   group.position.set(item.cx - roomW / 2, 0, item.cz - roomD / 2);
   group.userData.furniture = item;
   group.traverse((obj) => {
@@ -912,6 +922,45 @@ export class SceneRoot {
     return true;
   }
 
+  rotateFurniture(index) {
+    const item = this.data.furniture.find((f) => f.index === index);
+    if (!item) return false;
+    const cx = item.cx;
+    const cz = item.cz;
+    const w = item.width_m;
+    const d = item.depth_m;
+    item.angle = ((item.angle || 0) + 90) % 360;
+    item.width_m = d;
+    item.depth_m = w;
+    item.x1 = cx - d / 2;
+    item.x2 = cx + d / 2;
+    item.y1 = cz - w / 2;
+    item.y2 = cz + w / 2;
+    item.area_m2 = item.width_m * item.depth_m;
+    this.refreshMaterials();
+    return true;
+  }
+
+  resizeFurniture(index, width, depth) {
+    const item = this.data.furniture.find((f) => f.index === index);
+    if (!item) return false;
+    const w = clamp(Number(width) || item.width_m, 0.2, this.room.w - 0.02);
+    const d = clamp(Number(depth) || item.depth_m, 0.2, this.room.d - 0.02);
+    const cx = clamp(item.cx, w / 2, this.room.w - w / 2);
+    const cz = clamp(item.cz, d / 2, this.room.d - d / 2);
+    item.width_m = w;
+    item.depth_m = d;
+    item.cx = cx;
+    item.cz = cz;
+    item.x1 = cx - w / 2;
+    item.x2 = cx + w / 2;
+    item.y1 = cz - d / 2;
+    item.y2 = cz + d / 2;
+    item.area_m2 = w * d;
+    this.refreshMaterials();
+    return true;
+  }
+
   /** 材质目录或单件材质变化后，重建家具外观与损耗标签，保留当前选中。 */
   refreshMaterials() {
     if (!this.data) return;
@@ -951,6 +1000,7 @@ export class SceneRoot {
       name: spec.name,
       kind: spec.kind,
       material: spec.material || '',
+      angle: spec.angle || 0,
       height_m: spec.h,
       x1: spot.cx - width / 2,
       x2: spot.cx + width / 2,
@@ -1183,6 +1233,7 @@ export class SceneRoot {
         item.blocked_cells = meta.blocked_cells;
         if (meta.material !== undefined) item.material = meta.material;
         if (meta.material_label) item.material_label = meta.material_label;
+        if (meta.angle !== undefined) item.angle = meta.angle;
       });
     }
   }
@@ -1207,6 +1258,7 @@ export class SceneRoot {
         y1: round(item.y1),
         x2: round(item.x2),
         y2: round(item.y2),
+        ...(item.angle ? { angle: item.angle } : {}),
       })),
       manual_blocked: this.data.manual_blocked || [],
     };
