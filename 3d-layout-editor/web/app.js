@@ -345,6 +345,35 @@ function setBand(value) {
   runSimulate();
 }
 
+async function recommendAp() {
+  if (!sceneRoot) return;
+  setLoading(true);
+  try {
+    const data = await api('/api/best-ap', {
+      method: 'POST',
+      body: { ...sceneRoot.getLayoutPayload(), band },
+    });
+    if (!data || !data.best) {
+      showError(data?.error || '没有可推荐的位置');
+      return;
+    }
+    const b = data.best;
+    const snap = sceneRoot.snapshot();
+    snap.ap = { label: b.label, row: b.row, column: b.column, x_m: b.x_m, y_m: b.y_m };
+    sceneRoot.restore(snap);
+    await reanalyze();
+    const tip = $('bestApTip');
+    if (tip) {
+      tip.textContent = `已移到 ${b.label}：最弱 ${b.min_dbm} dBm · 平均 ${b.mean_dbm} dBm · 强覆盖 ${b.strong_cells} 格`;
+    }
+    toast(`推荐位置 ${b.label}：最弱信号 ${b.min_dbm} dBm`);
+  } catch (error) {
+    showError(`推荐失败：${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function loadMaterials() {
   try {
     const data = await api('/api/materials');
@@ -814,6 +843,7 @@ function bindUi() {
   });
   $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
+  $('btnBestAp')?.addEventListener('click', recommendAp);
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
   $('itemCardMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('btnPresent').addEventListener('click', () => togglePresent());

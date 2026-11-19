@@ -543,6 +543,50 @@ def simulate_layout(layout: Layout, band: str = DEFAULT_BAND) -> dict:
     }
 
 
+def best_ap_position(layout: Layout, band: str = DEFAULT_BAND) -> dict:
+    """在家具已摆好的前提下，搜索覆盖最好的路由器位置。
+
+    候选位置取「可用格子」（不被家具或手动障碍挡住的格子）；对每个候选
+    复用 simulate_layout 计算全屋 RSSI。评分先最大化最弱信号格
+    （min_dbm，避免死角），再最大化平均信号（mean_dbm），保证全屋覆盖最均衡。
+    """
+    if band not in BANDS:
+        band = DEFAULT_BAND
+    candidates = layout.usable_cells()
+    if not candidates:
+        candidates = list(layout.spec.all_cells())
+
+    best = None
+    best_key = None
+    for cell in candidates:
+        trial = Layout(
+            spec=layout.spec,
+            ap=cell,
+            start=layout.start,
+            furniture=list(layout.furniture),
+            manual_blocked=set(layout.manual_blocked),
+            clearance_m=layout.clearance_m,
+        )
+        stats = simulate_layout(trial, band)["stats"]
+        key = (stats["min_dbm"], stats["mean_dbm"])
+        if best_key is None or key > best_key:
+            best_key = key
+            cx, cy = layout.spec.center(cell)
+            best = {
+                "label": layout.spec.label(cell),
+                "row": cell[0],
+                "column": cell[1],
+                "x_m": round(cx, 4),
+                "y_m": round(cy, 4),
+                "min_dbm": stats["min_dbm"],
+                "max_dbm": stats["max_dbm"],
+                "mean_dbm": stats["mean_dbm"],
+                "strong_cells": stats["strong_cells"],
+                "quality_counts": stats["quality_counts"],
+            }
+    return best
+
+
 def state_payload(layout: Layout, file_name: str = "") -> dict:
     spec = layout.spec
     try:
@@ -806,7 +850,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate", "/api/predict", "/api/recognize"):
+        if parsed.path not in ("/api/analyze", "/api/save", "/api/simulate", "/api/predict", "/api/recognize", "/api/best-ap"):
             self._json({"error": "接口不存在"}, 404)
             return
         try:
@@ -839,6 +883,29 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(simulate_layout(layout, band))
             except Exception as exc:
                 self._json({"error": f"仿真失败：{exc}"}, 500)
+            return
+
+        if parsed.path == "/api/best-ap":
+            try:
+                layout = Layout.from_dict(payload)
+                band = str(payload.get("band") or DEFAULT_BAND)
+                best = best_ap_position(layout, band)
+                current = simulate_layout(layout, band)["stats"]
+                self._json(
+                    {
+                        "best": best,
+                        "current": {
+                            "label": layout.spec.label(layout.ap),
+                            "row": layout.ap[0],
+                            "column": layout.ap[1],
+                            "min_dbm": current["min_dbm"],
+                            "mean_dbm": current["mean_dbm"],
+                            "strong_cells": current["strong_cells"],
+                        },
+                    }
+                )
+            except Exception as exc:
+                self._json({"error": f"推荐失败：{exc}"}, 500)
             return
 
         if parsed.path == "/api/predict":
