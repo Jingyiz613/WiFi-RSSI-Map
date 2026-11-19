@@ -413,6 +413,9 @@ export class SceneRoot {
     this.pointerDirty = false;
     this.anim = null;
     this.autoRotate = false;
+    this._labelsDirty = true;
+    this.labelNameVisible = true;
+    this.labelLossVisible = true;
 
     this._initRenderer();
     this._initScene();
@@ -426,7 +429,6 @@ export class SceneRoot {
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: true,
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -455,6 +457,10 @@ export class SceneRoot {
     this.controls.autoRotateSpeed = 0.7;
     this.controls.target.set(0, 0.5, 0);
     this.controls.enablePan = true;
+    // 相机变化（旋转/缩放/自动环绕）才需要重新投影标签，静止时不跑 DOM 更新
+    this.controls.addEventListener('change', () => {
+      this._labelsDirty = true;
+    });
 
     this.scene.add(new THREE.HemisphereLight(0xdfeaff, 0x2a2118, 1.65));
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.35));
@@ -527,6 +533,19 @@ export class SceneRoot {
   _bind() {
     this._onResize = () => this.resize();
     window.addEventListener('resize', this._onResize);
+
+    this._onVisibility = () => {
+      if (document.hidden) {
+        if (this._raf) {
+          cancelAnimationFrame(this._raf);
+          this._raf = null;
+        }
+      } else if (!this._raf) {
+        this._raf = requestAnimationFrame(this._tick);
+        this.clock.getDelta(); // 重置增量，避免回到前台时跳帧
+      }
+    };
+    document.addEventListener('visibilitychange', this._onVisibility);
 
     this._onMove = (event) => {
       const rect = this.renderer.domElement.getBoundingClientRect();
@@ -608,6 +627,7 @@ export class SceneRoot {
     if (!this.dragging) return;
 
     if (this.dragging.type === 'ap') {
+      this._clearRecommend();
       const point = this._groundPoint(event);
       if (!point) return;
       const roomX = point.x + this.room.w / 2;
@@ -619,6 +639,7 @@ export class SceneRoot {
       if (this.apRoot) this.apRoot.position.set(cx - this.room.w / 2, 0, cz - this.room.d / 2);
       this.data.ap = { label: `P${row}${col}`, row, column: col, x_m: cx, y_m: cz };
       if (this.apTag) this.apTag.pos.set(cx - this.room.w / 2, 1.2, cz - this.room.d / 2);
+      this._labelsDirty = true;
       const cell = this.data.cells.find((c) => c.row === row && c.column === col);
       if (cell) this._setHover(-1, cell);
       this.dragging.moved = true;
@@ -656,6 +677,7 @@ export class SceneRoot {
     if (group) group.position.set(cx - this.room.w / 2, 0, cz - this.room.d / 2);
     const tag = this.tagByIndex.get(item.index);
     if (tag) tag.pos.set(cx - this.room.w / 2, tag.baseY, cz - this.room.d / 2);
+    this._labelsDirty = true;
 
     this._showBox(item.index);
     this.dragging.moved = true;
@@ -992,6 +1014,7 @@ export class SceneRoot {
   rebuildObjects() {
     this._clearGroup(this.furnitureGroup);
     this._clearGroup(this.apGroup);
+    this._clearRecommend();
     this.pickables = [];
     this.tags.forEach((tag) => tag.el.remove());
     this.tags = [];
@@ -1495,6 +1518,83 @@ export class SceneRoot {
     root.add(hit);
   }
 
+  showRecommend(ap) {
+    this._clearRecommend();
+    if (!ap) return;
+    const x = ap.x_m - this.room.w / 2;
+    const z = ap.y_m - this.room.d / 2;
+    const root = new THREE.Group();
+    root.position.set(x, 0, z);
+    root.userData.recommend = true;
+    this.scene.add(root);
+    this.recommendGroup = root;
+
+    const cw = this.room.cw || 1;
+    const cd = this.room.cd || 1;
+
+    const disc = new THREE.Mesh(
+      new THREE.PlaneGeometry(cw * 0.92, cd * 0.92),
+      new THREE.MeshBasicMaterial({
+        color: 0x2ecc71, transparent: true, opacity: 0.2,
+        side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.028;
+    root.add(disc);
+
+    root.add(this._makeDashedRect(cw * 0.92, cd * 0.92, 0x2ecc71));
+
+    this.recommendRing = new THREE.Mesh(
+      new THREE.RingGeometry(Math.min(cw, cd) * 0.34, Math.min(cw, cd) * 0.44, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0x2ecc71, transparent: true, opacity: 0.7,
+        side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    this.recommendRing.rotation.x = -Math.PI / 2;
+    this.recommendRing.position.y = 0.036;
+    root.add(this.recommendRing);
+
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.075, 2.4, 20),
+      new THREE.MeshBasicMaterial({
+        color: 0x2ecc71, transparent: true, opacity: 0.32,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    pillar.position.y = 1.2;
+    root.add(pillar);
+
+    this._labelsDirty = true;
+  }
+
+  _makeDashedRect(w, d, color) {
+    const pts = [
+      new THREE.Vector3(-w / 2, 0.032, -d / 2),
+      new THREE.Vector3(w / 2, 0.032, -d / 2),
+      new THREE.Vector3(w / 2, 0.032, d / 2),
+      new THREE.Vector3(-w / 2, 0.032, d / 2),
+      new THREE.Vector3(-w / 2, 0.032, -d / 2),
+    ];
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const line = new THREE.Line(
+      geo,
+      new THREE.LineDashedMaterial({ color, dashSize: 0.08, gapSize: 0.05, transparent: true, opacity: 0.95 })
+    );
+    line.computeLineDistances();
+    return line;
+  }
+
+  _clearRecommend() {
+    if (this.recommendGroup) {
+      this._clearGroup(this.recommendGroup);
+      this.scene.remove(this.recommendGroup);
+      this.recommendGroup = null;
+    }
+    this.recommendRing = null;
+  }
+
   _buildStart(start) {
     const g = this.startGroup;
     const x = start.x_m - this.room.w / 2;
@@ -1569,6 +1669,7 @@ export class SceneRoot {
       new THREE.Vector3(this.data.ap.x_m - this.room.w / 2, 1.2, this.data.ap.y_m - this.room.d / 2),
       'tag-ap'
     );
+    this._labelsDirty = true;
   }
 
   _updateLabels() {
@@ -1619,6 +1720,19 @@ export class SceneRoot {
     };
     if (name === 'labels') {
       this.labelLayer.style.display = visible ? '' : 'none';
+      return;
+    }
+    if (name === 'label-name' || name === 'label-loss') {
+      if (name === 'label-name') {
+        this.labelNameVisible = visible;
+        document.body.classList.toggle('hide-label-name', !visible);
+      } else {
+        this.labelLossVisible = visible;
+        document.body.classList.toggle('hide-label-loss', !visible);
+      }
+      // 标签尺寸随内容变化，清除缓存的宽度并让下一帧重新投影
+      for (const tag of this.tags) delete tag.w;
+      this._labelsDirty = true;
       return;
     }
     const group = map[name];
@@ -1684,7 +1798,10 @@ export class SceneRoot {
     this.controls.target.copy(target);
     this.camera.zoom = lerp(a.fromZoom, a.toZoom, k);
     this.camera.updateProjectionMatrix();
-    if (t >= 1) this.anim = null;
+    if (t >= 1) {
+      this.anim = null;
+      this._labelsDirty = true; // 动画最后一帧也要把标签投影到最终位置
+    }
   }
 
   focusFurniture(index) {
@@ -1777,12 +1894,47 @@ export class SceneRoot {
   }
 
   screenshot() {
-    this.renderer.render(this.scene, this.camera);
-    const url = this.renderer.domElement.toDataURL('image/png');
+    const renderer = this.renderer;
+    const size = new THREE.Vector2();
+    renderer.getSize(size);
+    const w = Math.max(1, Math.floor(size.x));
+    const h = Math.max(1, Math.floor(size.y));
+
+    // 关闭 preserveDrawingBuffer 后，toDataURL 读不到帧缓冲，
+    // 改为渲染到离屏目标再 readRenderTargetPixels，不影响常开渲染性能。
+    const target = new THREE.WebGLRenderTarget(w, h, {
+      format: THREE.RGBAFormat,
+      type: THREE.UnsignedByteType,
+      samples: 4,
+    });
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    renderer.render(this.scene, this.camera);
+    renderer.setRenderTarget(prev);
+
+    const pixels = new Uint8Array(w * h * 4);
+    renderer.readRenderTargetPixels(target, 0, 0, w, h, pixels);
+
+    // WebGL 原点在左下，canvas 在左上，逐行翻转
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(w, h);
+    const rowBytes = w * 4;
+    for (let y = 0; y < h; y += 1) {
+      imageData.data.set(
+        pixels.subarray((h - 1 - y) * rowBytes, (h - y) * rowBytes),
+        y * rowBytes
+      );
+    }
+    ctx.putImageData(imageData, 0, 0);
+    target.dispose();
+
     const link = document.createElement('a');
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     link.download = `miniauto-3d-${stamp}.png`;
-    link.href = url;
+    link.href = canvas.toDataURL('image/png');
     link.click();
   }
 
@@ -1809,6 +1961,7 @@ export class SceneRoot {
     this.camera.top = viewH / 2;
     this.camera.bottom = -viewH / 2;
     this.camera.updateProjectionMatrix();
+    this._labelsDirty = true;
   }
 
   /* ---------- 动画 ---------- */
@@ -1816,6 +1969,7 @@ export class SceneRoot {
   _tick(now) {
     this._raf = requestAnimationFrame(this._tick);
     this._updateAnim(now);
+    if (this.anim) this._labelsDirty = true; // 视角动画期间标签跟随相机
     this.controls.update();
     const t = now / 1000;
 
@@ -1829,6 +1983,12 @@ export class SceneRoot {
     }
     if (this.apBulb) {
       this.apBulb.material.emissiveIntensity = 2.3 + Math.sin(t * 3.2) * 0.55;
+    }
+    if (this.recommendRing) {
+      const phase = (t * 0.7) % 1;
+      const scale = 1 + phase * 2.0;
+      this.recommendRing.scale.set(scale, scale, 1);
+      this.recommendRing.material.opacity = (1 - phase) * 0.7;
     }
     if (this.startRing) {
       this.startRing.material.opacity = 0.55 + Math.sin(t * 2.2) * 0.2;
@@ -1847,7 +2007,10 @@ export class SceneRoot {
       this.pointerDirty = false;
       this._pick();
     }
-    this._updateLabels();
+    if (this._labelsDirty) {
+      this._labelsDirty = false;
+      this._updateLabels();
+    }
     if (this.onSelectedFrame && this.selectedIndex >= 0) {
       this.onSelectedFrame(this.getSelectedAnchor());
     }
@@ -1857,6 +2020,7 @@ export class SceneRoot {
   dispose() {
     cancelAnimationFrame(this._raf);
     window.removeEventListener('resize', this._onResize);
+    document.removeEventListener('visibilitychange', this._onVisibility);
     this.renderer.domElement.removeEventListener('pointermove', this._onMove);
     this.renderer.domElement.removeEventListener('pointerleave', this._onLeave);
     this.renderer.domElement.removeEventListener('pointerdown', this._onDown, true);

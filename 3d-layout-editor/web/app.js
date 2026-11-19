@@ -362,6 +362,7 @@ async function recommendAp() {
     snap.ap = { label: b.label, row: b.row, column: b.column, x_m: b.x_m, y_m: b.y_m };
     sceneRoot.restore(snap);
     await reanalyze();
+    sceneRoot.showRecommend({ x_m: b.x_m, y_m: b.y_m });
     const tip = $('bestApTip');
     if (tip) {
       tip.textContent = `已移到 ${b.label}：最弱 ${b.min_dbm} dBm · 平均 ${b.mean_dbm} dBm · 强覆盖 ${b.strong_cells} 格`;
