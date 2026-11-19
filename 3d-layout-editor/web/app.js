@@ -363,16 +363,37 @@ async function recommendAp() {
     sceneRoot.restore(snap);
     await reanalyze();
     sceneRoot.showRecommend({ x_m: b.x_m, y_m: b.y_m });
-    const tip = $('bestApTip');
-    if (tip) {
-      tip.textContent = `已移到 ${b.label}：最弱 ${b.min_dbm} dBm · 平均 ${b.mean_dbm} dBm · 强覆盖 ${b.strong_cells} 格`;
-    }
+    showBestApReasons(b.reasons || [], b.label);
     toast(`推荐位置 ${b.label}：最弱信号 ${b.min_dbm} dBm`);
   } catch (error) {
     showError(`推荐失败：${error.message}`);
   } finally {
     setLoading(false);
   }
+}
+
+function showBestApReasons(reasons, label) {
+  const pop = $('bestApPop');
+  const list = $('bestApReasons');
+  if (!pop || !list) return;
+  list.innerHTML = '';
+  const title = document.createElement('li');
+  title.textContent = `推荐把路由器放在 ${label}：`;
+  title.style.listStyle = 'none';
+  title.style.fontWeight = '700';
+  title.style.color = '#2ecc71';
+  title.style.marginLeft = '-16px';
+  list.appendChild(title);
+  (reasons || []).forEach((r) => {
+    const li = document.createElement('li');
+    li.textContent = r;
+    list.appendChild(li);
+  });
+  pop.classList.remove('hidden');
+}
+
+function hideBestApReasons() {
+  $('bestApPop')?.classList.add('hidden');
 }
 
 async function loadMaterials() {
@@ -845,6 +866,7 @@ function bindUi() {
   $('btnBand24')?.addEventListener('click', () => setBand('2.4g'));
   $('btnBand5')?.addEventListener('click', () => setBand('5g'));
   $('btnBestAp')?.addEventListener('click', recommendAp);
+  $('bestApPopClose')?.addEventListener('click', hideBestApReasons);
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
   $('itemCardMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
   $('btnPresent').addEventListener('click', () => togglePresent());
