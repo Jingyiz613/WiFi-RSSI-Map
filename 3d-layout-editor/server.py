@@ -139,6 +139,28 @@ def _ai_kind(name: str) -> str:
     return "box"
 
 
+# AI 识别出的材质文字 -> MATERIALS key（顺序敏感：玻璃先于金属，避免"钢化玻璃"误判成金属）
+_AI_MATERIAL_KEYWORDS = (
+    (("木", "wood", "实木", "原木", "板式"), "wood"),
+    (("布", "fabric", "织物", "绒", "棉", "软包", "海绵"), "fabric"),
+    (("皮", "leather", "革", "真皮", "pu"), "leather"),
+    (("玻璃", "glass"), "glass"),
+    (("金属", "metal", "铁", "钢", "不锈钢", "铝"), "metal"),
+    (("塑料", "plastic", "亚克力", "树脂"), "plastic"),
+    (("石", "stone", "大理石", "岩板", "花岗岩"), "stone"),
+)
+
+
+def _ai_material(text: str) -> str:
+    raw = str(text or "").strip().lower()
+    if not raw:
+        return ""
+    for keys, key in _AI_MATERIAL_KEYWORDS:
+        if any(k in raw for k in keys):
+            return key
+    return ""
+
+
 def _place_rect(position: str, w: float, d: float, room_w: float, room_h: float) -> tuple[float, float]:
     """按方位计算家具左上角坐标 (x1, y1)。原点在房间左上角，x 向右、y 向下。"""
     pos = position or ""
@@ -182,6 +204,13 @@ def ai_to_layout(parsed: dict) -> dict:
             continue
         kind = _ai_kind(name)
         w, d = FURNITURE_SIZE.get(kind, (0.6, 0.5))
+        # 方向：纵向时交换宽深（长边沿房间纵深）
+        orientation = str(raw.get("orientation") or "").strip().lower()
+        angle = 0
+        if "纵" in orientation or "竖" in orientation or "前后" in orientation:
+            w, d = d, w
+            angle = 90
+        material = _ai_material(raw.get("material"))
         x1, y1 = _place_rect(str(raw.get("position") or ""), w, d, width, depth)
 
         attempts = 0
@@ -195,15 +224,18 @@ def ai_to_layout(parsed: dict) -> dict:
                 x1 = round(x1 + 0.3, 3)
             attempts += 1
 
-        furniture.append(
-            {
-                "name": name[:16],
-                "x1": round(x1, 3),
-                "y1": round(y1, 3),
-                "x2": round(x1 + w, 3),
-                "y2": round(y1 + d, 3),
-            }
-        )
+        entry = {
+            "name": name[:16],
+            "x1": round(x1, 3),
+            "y1": round(y1, 3),
+            "x2": round(x1 + w, 3),
+            "y2": round(y1 + d, 3),
+        }
+        if material:
+            entry["material"] = material
+        if angle:
+            entry["angle"] = angle
+        furniture.append(entry)
 
     return {
         "version": 2,
@@ -313,6 +345,7 @@ def furniture_meta(layout: Layout) -> list[dict]:
                 "depth_m": round(item.height_m, 4),
                 "area_m2": round(item.area_m2, 3),
                 "height_m": height,
+                "angle": item.angle,
                 "blocked_cells": len(item.cells(spec, layout.clearance_m)),
             }
         )
@@ -383,26 +416,33 @@ MATERIALS = {
     "bulletproof_glass": {"label": "防弹玻璃", "thickness_mm": 120, "loss": {"2.4g": 25.0, "5g": 35.0}},
     "concrete": {"label": "混凝土", "thickness_mm": 240, "loss": {"2.4g": 25.0, "5g": 30.0}},
     "metal": {"label": "金属", "thickness_mm": 80, "loss": {"2.4g": 30.0, "5g": 35.0}},
+    # 家具材质（拍照识别 / 手动指定）
+    "wood": {"label": "木材", "thickness_mm": 20, "loss": {"2.4g": 4.0, "5g": 6.0}},
+    "fabric": {"label": "布艺软包", "thickness_mm": 20, "loss": {"2.4g": 1.0, "5g": 2.0}},
+    "leather": {"label": "皮革", "thickness_mm": 20, "loss": {"2.4g": 2.0, "5g": 3.0}},
+    "glass": {"label": "玻璃", "thickness_mm": 10, "loss": {"2.4g": 4.0, "5g": 7.0}},
+    "plastic": {"label": "塑料", "thickness_mm": 15, "loss": {"2.4g": 1.0, "5g": 2.0}},
+    "stone": {"label": "石材", "thickness_mm": 30, "loss": {"2.4g": 10.0, "5g": 15.0}},
 }
 
 KIND_MATERIAL = {
-    "sofa": "synthetic",
-    "bed": "synthetic",
-    "cabinet": "synthetic",
-    "nightstand": "synthetic",
-    "side_table": "synthetic",
-    "desk": "synthetic",
-    "table": "synthetic",
-    "chair": "synthetic",
-    "coffee_table": "synthetic",
-    "tv": "tinted_glass",
-    "tv_stand": "synthetic",
+    "sofa": "fabric",
+    "bed": "fabric",
+    "cabinet": "wood",
+    "nightstand": "wood",
+    "side_table": "wood",
+    "desk": "wood",
+    "table": "wood",
+    "chair": "wood",
+    "coffee_table": "wood",
+    "tv": "glass",
+    "tv_stand": "wood",
     "fridge": "metal",
     "washer": "metal",
-    "plant": "synthetic",
-    "rug": "synthetic",
-    "aircon": "synthetic",
-    "box": "synthetic",
+    "plant": "plastic",
+    "rug": "fabric",
+    "aircon": "plastic",
+    "box": "plastic",
     "brick_120": "brick_120",
     "brick_240": "brick_240",
     "wood_door": "wood_door",

@@ -28,7 +28,12 @@ def _clamp(value: float, low: float, high: float) -> float:
 
 @dataclass
 class Furniture:
-    """一块矩形家具，米制坐标，(x1, y1) 为左上角，(x2, y2) 为右下角。"""
+    """一块矩形家具，米制坐标，(x1, y1) 为左上角，(x2, y2) 为右下角。
+
+    angle 表示朝向（0/90/180/270 度）：家具「原始形状」（宽沿 x、深沿 y）
+    绕中心旋转 angle 后得到的轴对齐包围盒就是 (x1,y1,x2,y2)。
+    即 angle 为 90/270 时宽深互换；渲染时按 angle 旋转 mesh 还原朝向。
+    """
 
     name: str
     x1: float
@@ -36,6 +41,7 @@ class Furniture:
     x2: float
     y2: float
     material: str = ""  # 空字符串表示按家具类型自动推断
+    angle: int = 0  # 朝向角度：0/90/180/270
 
     def __post_init__(self) -> None:
         self.x1, self.x2 = sorted((float(self.x1), float(self.x2)))
@@ -46,6 +52,10 @@ class Furniture:
             ch for ch in str(self.material or "").strip().lower() if ch.isalnum() or ch == "_"
         )
         self.material = cleaned_mat[:24]
+        try:
+            self.angle = int(self.angle) % 360
+        except (TypeError, ValueError):
+            self.angle = 0
 
     # ---- 几何 ----
     @property
@@ -59,6 +69,16 @@ class Furniture:
     @property
     def area_m2(self) -> float:
         return self.width_m * self.height_m
+
+    def rotate90(self) -> "Furniture":
+        """绕自身中心顺时针旋转 90°，宽深互换（保持轴对齐包围盒）。"""
+        cx = (self.x1 + self.x2) / 2
+        cy = (self.y1 + self.y2) / 2
+        w, h = self.width_m, self.height_m
+        self.x1, self.x2 = cx - h / 2, cx + h / 2
+        self.y1, self.y2 = cy - w / 2, cy + w / 2
+        self.angle = (self.angle + 90) % 360
+        return self
 
     def contains_point(self, x_m: float, y_m: float) -> bool:
         return self.x1 <= x_m <= self.x2 and self.y1 <= y_m <= self.y2
@@ -86,7 +106,7 @@ class Furniture:
         y2 = _clamp(self.y2, 0.0, spec.height_m)
         if x2 - x1 < 0.02 or y2 - y1 < 0.02:
             return None
-        return Furniture(self.name, x1, y1, x2, y2, self.material)
+        return Furniture(self.name, x1, y1, x2, y2, self.material, self.angle)
 
     def describe(self, spec: GridSpec, clearance_m: float = DEFAULT_CLEARANCE_M) -> str:
         count = len(self.cells(spec, clearance_m))
@@ -106,11 +126,14 @@ class Furniture:
         }
         if self.material:
             data["material"] = self.material
+        if self.angle:
+            data["angle"] = self.angle
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], spec: GridSpec | None = None) -> "Furniture":
         material = str(data.get("material") or "")
+        angle = data.get("angle", 0)
         if "x1" in data:
             return cls(
                 name=str(data.get("name", "家具")),
@@ -119,6 +142,7 @@ class Furniture:
                 x2=float(data.get("x2", data["x1"])),
                 y2=float(data.get("y2", data.get("y1", 0.0))),
                 material=material,
+                angle=angle,
             )
         # 兼容 v1：行列格式，转成整格矩形
         if spec is None:
@@ -129,7 +153,7 @@ class Furniture:
         col2 = int(data.get("col2", col1))
         bx1, by1, _, _ = spec.cell_bounds((row1, col1))
         _, _, bx2, by2 = spec.cell_bounds((row2, col2))
-        return cls(str(data.get("name", "家具")), bx1, by1, bx2, by2, material)
+        return cls(str(data.get("name", "家具")), bx1, by1, bx2, by2, material, angle)
 
 
 @dataclass

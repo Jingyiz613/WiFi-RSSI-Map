@@ -485,6 +485,10 @@ function renderItemCard(item) {
   }
   const select = $('itemCardMaterial');
   if (select) select.value = item.material || '';
+  const wEl = $('itemCardW');
+  if (wEl) wEl.value = Math.round(item.width_m * 100);
+  const dEl = $('itemCardD');
+  if (dEl) dEl.value = Math.round(item.depth_m * 100);
   card.classList.remove('hidden');
   card.style.opacity = '0';
   card.style.pointerEvents = 'none';
@@ -525,6 +529,37 @@ async function applyFurnitureMaterial(material) {
   await reanalyze();
   const label = next ? materialData?.[next]?.label || next : '自动';
   toast(`「${target.name}」材质：${label}`);
+}
+
+async function applyFurnitureSize(width, depth) {
+  if (!selectedItem) return;
+  const target = selectedItem;
+  const w = width / 100;
+  const d = depth / 100;
+  if (!Number.isFinite(w) || !Number.isFinite(d) || w < 0.2 || d < 0.2) {
+    toast('尺寸需不小于 20 cm');
+    renderItemCard(target);
+    return;
+  }
+  const before = sceneRoot.snapshot();
+  sceneRoot.resizeFurniture(target.index, w, d);
+  history.push(before);
+  if (history.length > 50) history.shift();
+  renderProperties(target);
+  await reanalyze();
+  toast(`「${target.name}」已调整为 ${Math.round(w * 100)}×${Math.round(d * 100)} cm`);
+}
+
+async function rotateSelected() {
+  if (!selectedItem) return;
+  const target = selectedItem;
+  const before = sceneRoot.snapshot();
+  sceneRoot.rotateFurniture(target.index);
+  history.push(before);
+  if (history.length > 50) history.shift();
+  renderProperties(target);
+  await reanalyze();
+  toast(`「${target.name}」已旋转 90°`);
 }
 
 function syncRoomInputs() {
@@ -869,6 +904,9 @@ function bindUi() {
   $('bestApPopClose')?.addEventListener('click', hideBestApReasons);
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
   $('itemCardMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
+  $('itemCardRotate')?.addEventListener('click', rotateSelected);
+  $('itemCardW')?.addEventListener('change', () => applyFurnitureSize(Number($('itemCardW').value), Number($('itemCardD').value)));
+  $('itemCardD')?.addEventListener('change', () => applyFurnitureSize(Number($('itemCardW').value), Number($('itemCardD').value)));
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
   $('btnAIFurnished')?.addEventListener('click', () => setAIMode('environment', 'furnished'));
