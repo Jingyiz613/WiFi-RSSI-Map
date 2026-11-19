@@ -17,7 +17,7 @@ from typing import Any
 
 from route_planner import Cell, GridSpec, PlanError
 
-LAYOUT_VERSION = 2
+LAYOUT_VERSION = 3
 MAX_NAME_LEN = 16
 DEFAULT_CLEARANCE_M = 0.10
 
@@ -28,24 +28,25 @@ def _clamp(value: float, low: float, high: float) -> float:
 
 @dataclass
 class Furniture:
-    """一块矩形家具，米制坐标，(x1, y1) 为左上角，(x2, y2) 为右下角。
+    """一块矩形家具，用「旋转矩形」表示：中心 (cx, cy)、原始宽深 (w, d)、朝向角 angle。
 
-    angle 表示朝向（0/90/180/270 度）：家具「原始形状」（宽沿 x、深沿 y）
-    绕中心旋转 angle 后得到的轴对齐包围盒就是 (x1,y1,x2,y2)。
-    即 angle 为 90/270 时宽深互换；渲染时按 angle 旋转 mesh 还原朝向。
+    angle 为家具绕中心旋转的角度（度，0-360）；angle=0 时宽沿 x、深沿 y。
+    x1/y1/x2/y2 为旋转后的轴对齐包围盒（AABB），由中心、宽深、角度派生。
     """
 
     name: str
-    x1: float
-    y1: float
-    x2: float
-    y2: float
+    cx: float
+    cy: float
+    w: float
+    d: float
     material: str = ""  # 空字符串表示按家具类型自动推断
-    angle: int = 0  # 朝向角度：0/90/180/270
+    angle: float = 0.0  # 朝向角度：0-360 度
 
     def __post_init__(self) -> None:
-        self.x1, self.x2 = sorted((float(self.x1), float(self.x2)))
-        self.y1, self.y2 = sorted((float(self.y1), float(self.y2)))
+        self.cx = float(self.cx)
+        self.cy = float(self.cy)
+        self.w = max(float(self.w), 0.01)
+        self.d = max(float(self.d), 0.01)
         cleaned = " ".join(str(self.name or "家具").split())
         self.name = (cleaned or "家具")[:MAX_NAME_LEN]
         cleaned_mat = "".join(
@@ -53,41 +54,81 @@ class Furniture:
         )
         self.material = cleaned_mat[:24]
         try:
-            self.angle = int(self.angle) % 360
+            self.angle = float(self.angle) % 360.0
         except (TypeError, ValueError):
-            self.angle = 0
+            self.angle = 0.0
 
-    # ---- 几何 ----
+    # ---- 派生：轴对齐包围盒 ----
+    def _corners(self) -> list[tuple[float, float]]:
+        a = math.radians(self.angle)
+        ca, sa = math.cos(a), math.sin(a)
+        hw, hd = self.w / 2, self.d / 2
+        return [
+            (self.cx + hw * ca - hd * sa, self.cy + hw * sa + hd * ca),
+            (self.cx - hw * ca - hd * sa, self.cy - hw * sa + hd * ca),
+            (self.cx + hw * ca + hd * sa, self.cy + hw * sa - hd * ca),
+            (self.cx - hw * ca + hd * sa, self.cy - hw * sa - hd * ca),
+        ]
+
+    @property
+    def x1(self) -> float:
+        return min(c[0] for c in self._corners())
+
+    @property
+    def y1(self) -> float:
+        return min(c[1] for c in self._corners())
+
+    @property
+    def x2(self) -> float:
+        return max(c[0] for c in self._corners())
+
+    @property
+    def y2(self) -> float:
+        return max(c[1] for c in self._corners())
+
     @property
     def width_m(self) -> float:
+        """轴对齐包围盒的宽（x 方向）。"""
         return self.x2 - self.x1
 
     @property
     def height_m(self) -> float:
+        """轴对齐包围盒的高（y 方向）。"""
         return self.y2 - self.y1
 
     @property
     def area_m2(self) -> float:
-        return self.width_m * self.height_m
+        return self.w * self.d
 
-    def rotate90(self) -> "Furniture":
-        """绕自身中心顺时针旋转 90°，宽深互换（保持轴对齐包围盒）。"""
-        cx = (self.x1 + self.x2) / 2
-        cy = (self.y1 + self.y2) / 2
-        w, h = self.width_m, self.height_m
-        self.x1, self.x2 = cx - h / 2, cx + h / 2
-        self.y1, self.y2 = cy - w / 2, cy + w / 2
-        self.angle = (self.angle + 90) % 360
+    def rotate(self, delta: float) -> "Furniture":
+        """绕自身中心旋转 delta 度（正值为逆时针，与 3D 渲染一致）。"""
+        self.angle = (self.angle + float(delta)) % 360.0
         return self
 
+    def rotate90(self) -> "Furniture":
+        """绕自身中心顺时针旋转 90°（兼容旧调用）。"""
+        return self.rotate(90.0)
+
     def contains_point(self, x_m: float, y_m: float) -> bool:
-        return self.x1 <= x_m <= self.x2 and self.y1 <= y_m <= self.y2
+        a = -math.radians(self.angle)
+        ca, sa = math.cos(a), math.sin(a)
+        dx = x_m - self.cx
+        dy = y_m - self.cy
+        lx = dx * ca - dy * sa
+        ly = dx * sa + dy * ca
+        return abs(lx) <= self.w / 2 and abs(ly) <= self.d / 2
 
     def distance_to(self, x_m: float, y_m: float) -> float:
-        """点到矩形的欧氏距离；点在矩形内返回 0。"""
-        dx = max(self.x1 - x_m, 0.0, x_m - self.x2)
-        dy = max(self.y1 - y_m, 0.0, y_m - self.y2)
-        return math.hypot(dx, dy)
+        """点到旋转矩形的欧氏距离；点在矩形内返回 0。"""
+        a = -math.radians(self.angle)
+        ca, sa = math.cos(a), math.sin(a)
+        dx = x_m - self.cx
+        dy = y_m - self.cy
+        lx = dx * ca - dy * sa
+        ly = dx * sa + dy * ca
+        qx = max(abs(lx) - self.w / 2, 0.0)
+        qy = max(abs(ly) - self.d / 2, 0.0)
+        return math.hypot(qx, qy)
 
     def cells(self, spec: GridSpec, clearance_m: float = 0.0) -> set[Cell]:
         """格子中心进入「家具 + 安全间距」范围的格子。"""
@@ -99,19 +140,20 @@ class Furniture:
         return out
 
     def clipped(self, spec: GridSpec) -> "Furniture | None":
-        """裁到房间范围内；完全在外或退化成一条线时返回 None。"""
-        x1 = _clamp(self.x1, 0.0, spec.width_m)
-        x2 = _clamp(self.x2, 0.0, spec.width_m)
-        y1 = _clamp(self.y1, 0.0, spec.height_m)
-        y2 = _clamp(self.y2, 0.0, spec.height_m)
-        if x2 - x1 < 0.02 or y2 - y1 < 0.02:
+        """约束到房间内：中心须在房间范围内；完全在外或过小时返回 None。
+
+        旋转家具允许轴对齐包围盒略超出边缘（家具斜放贴墙是合理的）。
+        """
+        if self.w < 0.02 or self.d < 0.02:
             return None
-        return Furniture(self.name, x1, y1, x2, y2, self.material, self.angle)
+        if not (0.0 <= self.cx <= spec.width_m and 0.0 <= self.cy <= spec.height_m):
+            return None
+        return self
 
     def describe(self, spec: GridSpec, clearance_m: float = DEFAULT_CLEARANCE_M) -> str:
         count = len(self.cells(spec, clearance_m))
         return (
-            f"{self.name}  {self.width_m * 100:.0f}×{self.height_m * 100:.0f} cm  "
+            f"{self.name}  {self.w * 100:.0f}×{self.d * 100:.0f} cm  "
             f"{self.area_m2:.2f} m2  挡 {count} 格"
         )
 
@@ -119,30 +161,51 @@ class Furniture:
     def to_dict(self) -> dict[str, Any]:
         data = {
             "name": self.name,
-            "x1": round(self.x1, 3),
-            "y1": round(self.y1, 3),
-            "x2": round(self.x2, 3),
-            "y2": round(self.y2, 3),
+            "cx": round(self.cx, 3),
+            "cy": round(self.cy, 3),
+            "w": round(self.w, 3),
+            "d": round(self.d, 3),
         }
+        if self.angle:
+            data["angle"] = round(self.angle, 1)
         if self.material:
             data["material"] = self.material
-        if self.angle:
-            data["angle"] = self.angle
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], spec: GridSpec | None = None) -> "Furniture":
         material = str(data.get("material") or "")
-        angle = data.get("angle", 0)
-        if "x1" in data:
+        angle = float(data.get("angle") or 0)
+        # 新格式：中心 + 原始宽深 + 角度
+        if "cx" in data and "w" in data:
             return cls(
                 name=str(data.get("name", "家具")),
-                x1=float(data["x1"]),
-                y1=float(data.get("y1", 0.0)),
-                x2=float(data.get("x2", data["x1"])),
-                y2=float(data.get("y2", data.get("y1", 0.0))),
+                cx=float(data["cx"]),
+                cy=float(data["cy"]),
+                w=float(data["w"]),
+                d=float(data["d"]),
                 material=material,
                 angle=angle,
+            )
+        # 旧格式：轴对齐矩形 x1,y1,x2,y2（正交角度 0/90/180/270）
+        if "x1" in data:
+            x1, x2 = sorted((float(data["x1"]), float(data.get("x2", data["x1"]))))
+            y1, y2 = sorted(
+                (float(data.get("y1", 0.0)), float(data.get("y2", data.get("y1", 0.0))))
+            )
+            a = int(round(angle)) % 360
+            if a % 180 == 90:
+                w, d = y2 - y1, x2 - x1
+            else:
+                w, d = x2 - x1, y2 - y1
+            return cls(
+                name=str(data.get("name", "家具")),
+                cx=(x1 + x2) / 2,
+                cy=(y1 + y2) / 2,
+                w=w,
+                d=d,
+                material=material,
+                angle=float(a),
             )
         # 兼容 v1：行列格式，转成整格矩形
         if spec is None:
@@ -153,7 +216,15 @@ class Furniture:
         col2 = int(data.get("col2", col1))
         bx1, by1, _, _ = spec.cell_bounds((row1, col1))
         _, _, bx2, by2 = spec.cell_bounds((row2, col2))
-        return cls(str(data.get("name", "家具")), bx1, by1, bx2, by2, material, angle)
+        return cls(
+            str(data.get("name", "家具")),
+            (bx1 + bx2) / 2,
+            (by1 + by2) / 2,
+            bx2 - bx1,
+            by2 - by1,
+            material,
+            angle,
+        )
 
 
 @dataclass
@@ -166,6 +237,7 @@ class Layout:
     furniture: list[Furniture] = field(default_factory=list)
     manual_blocked: set[Cell] = field(default_factory=set)
     clearance_m: float = DEFAULT_CLEARANCE_M
+    ap_height_m: float = 1.0  # 路由器天线高度（米）
 
     # ---- 查询 ----
     def furniture_cells(self) -> set[Cell]:
@@ -293,6 +365,7 @@ class Layout:
             "clearance_m": round(self.clearance_m, 3),
             "ap": self.spec.label(self.ap),
             "start": self.spec.label(self.start),
+            "ap_height_m": round(self.ap_height_m, 2),
             "furniture": [item.to_dict() for item in self.furniture],
             "manual_blocked": [self.spec.label(c) for c in sorted(self.manual_blocked)],
         }
@@ -318,6 +391,7 @@ class Layout:
             ap=_cell(data.get("ap"), (min(2, spec.rows), min(2, spec.columns))),
             start=_cell(data.get("start"), (1, 1)),
             clearance_m=float(data.get("clearance_m", DEFAULT_CLEARANCE_M)),
+            ap_height_m=float(data.get("ap_height_m", 1.0)),
         )
         for raw in data.get("furniture") or []:
             if not isinstance(raw, dict):

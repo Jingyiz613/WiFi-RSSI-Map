@@ -270,10 +270,8 @@ function addCylinder(parent, rTop, rBottom, h, material, x = 0, y = 0, z = 0, se
 function buildFurniture(item, roomW, roomD) {
   const group = new THREE.Group();
   const angle = item.angle || 0;
-  // 占据矩形是旋转后的包围盒；还原「原始宽深」用于生成家具造型
-  let w = Math.max(item.width_m, 0.05);
-  let d = Math.max(item.depth_m, 0.05);
-  if (angle % 180 === 90) [w, d] = [d, w];
+  const w = Math.max(item.width_m, 0.05);
+  const d = Math.max(item.depth_m, 0.05);
   const h = Math.max(item.height_m, 0.02);
   const kind = item.kind;
   const base = furnitureBaseColor(item);
@@ -646,9 +644,10 @@ export class SceneRoot {
       const row = clamp(Math.round(roomZ / this.room.cd - 0.5) + 1, 1, this.room.rows);
       const cx = (col - 0.5) * this.room.cw;
       const cz = (row - 0.5) * this.room.cd;
-      if (this.apRoot) this.apRoot.position.set(cx - this.room.w / 2, 0, cz - this.room.d / 2);
-      this.data.ap = { label: `P${row}${col}`, row, column: col, x_m: cx, y_m: cz };
-      if (this.apTag) this.apTag.pos.set(cx - this.room.w / 2, 1.2, cz - this.room.d / 2);
+      const baseY = Math.max(0, (this.data.ap.height_m || 1.0) - 0.5);
+      if (this.apRoot) this.apRoot.position.set(cx - this.room.w / 2, baseY, cz - this.room.d / 2);
+      this.data.ap = { ...this.data.ap, label: `P${row}${col}`, row, column: col, x_m: cx, y_m: cz };
+      if (this.apTag) this.apTag.pos.set(cx - this.room.w / 2, baseY + 1.2, cz - this.room.d / 2);
       this._labelsDirty = true;
       const cell = this.data.cells.find((c) => c.row === row && c.column === col);
       if (cell) this._setHover(-1, cell);
@@ -676,10 +675,7 @@ export class SceneRoot {
 
     item.cx = cx;
     item.cz = cz;
-    item.x1 = cx - hw;
-    item.x2 = cx + hw;
-    item.y1 = cz - hd;
-    item.y2 = cz + hd;
+    this._syncAabb(item);
 
     const group = this.furnitureGroup.children.find(
       (entry) => entry.userData.furniture?.index === item.index
@@ -881,20 +877,11 @@ export class SceneRoot {
     this.data.furniture = this.data.furniture.map((item) => {
       const iw = Math.min(item.width_m, w - 0.1);
       const id = Math.min(item.depth_m, d - 0.1);
-      const cx = clamp(item.cx * sx, iw / 2, w - iw / 2);
-      const cz = clamp(item.cz * sy, id / 2, d - id / 2);
-      return {
-        ...item,
-        width_m: iw,
-        depth_m: id,
-        cx,
-        cz,
-        x1: cx - iw / 2,
-        x2: cx + iw / 2,
-        y1: cz - id / 2,
-        y2: cz + id / 2,
-        area_m2: iw * id,
-      };
+      const cx = clamp(item.cx * sx, 0, w);
+      const cz = clamp(item.cz * sy, 0, d);
+      const next = { ...item, width_m: iw, depth_m: id, cx, cz };
+      this._syncAabb(next);
+      return next;
     });
     this.data.ap = {
       ...this.data.ap,
@@ -922,21 +909,11 @@ export class SceneRoot {
     return true;
   }
 
-  rotateFurniture(index) {
+  rotateFurniture(index, delta = 15) {
     const item = this.data.furniture.find((f) => f.index === index);
     if (!item) return false;
-    const cx = item.cx;
-    const cz = item.cz;
-    const w = item.width_m;
-    const d = item.depth_m;
-    item.angle = ((item.angle || 0) + 90) % 360;
-    item.width_m = d;
-    item.depth_m = w;
-    item.x1 = cx - d / 2;
-    item.x2 = cx + d / 2;
-    item.y1 = cz - w / 2;
-    item.y2 = cz + w / 2;
-    item.area_m2 = item.width_m * item.depth_m;
+    item.angle = (((item.angle || 0) + delta) % 360 + 360) % 360;
+    this._syncAabb(item);
     this.refreshMaterials();
     return true;
   }
@@ -946,18 +923,36 @@ export class SceneRoot {
     if (!item) return false;
     const w = clamp(Number(width) || item.width_m, 0.2, this.room.w - 0.02);
     const d = clamp(Number(depth) || item.depth_m, 0.2, this.room.d - 0.02);
-    const cx = clamp(item.cx, w / 2, this.room.w - w / 2);
-    const cz = clamp(item.cz, d / 2, this.room.d - d / 2);
     item.width_m = w;
     item.depth_m = d;
-    item.cx = cx;
-    item.cz = cz;
-    item.x1 = cx - w / 2;
-    item.x2 = cx + w / 2;
-    item.y1 = cz - d / 2;
-    item.y2 = cz + d / 2;
-    item.area_m2 = w * d;
+    item.cx = clamp(item.cx, 0, this.room.w);
+    item.cz = clamp(item.cz, 0, this.room.d);
+    this._syncAabb(item);
     this.refreshMaterials();
+    return true;
+  }
+
+  _syncAabb(item) {
+    const a = (item.angle || 0) * Math.PI / 180;
+    const ca = Math.abs(Math.cos(a));
+    const sa = Math.abs(Math.sin(a));
+    const hw = (item.width_m * ca + item.depth_m * sa) / 2;
+    const hd = (item.width_m * sa + item.depth_m * ca) / 2;
+    item.x1 = item.cx - hw;
+    item.x2 = item.cx + hw;
+    item.y1 = item.cz - hd;
+    item.y2 = item.cz + hd;
+    item.area_m2 = item.width_m * item.depth_m;
+  }
+
+  setApHeight(height) {
+    const ap = this.data.ap;
+    if (!ap) return false;
+    ap.height_m = height;
+    const baseY = Math.max(0, height - 0.5);
+    if (this.apRoot) this.apRoot.position.y = baseY;
+    if (this.apTag) this.apTag.pos.y = baseY + 1.2;
+    this._labelsDirty = true;
     return true;
   }
 
@@ -1224,6 +1219,7 @@ export class SceneRoot {
     if (state.cells) this.setCells(state.cells);
     if (state.stats) this.data.stats = state.stats;
     if (state.problems) this.data.problems = state.problems;
+    if (state.ap && state.ap.height_m !== undefined) this.data.ap.height_m = state.ap.height_m;
     if (state.furniture) {
       state.furniture.forEach((meta) => {
         const item = this.data.furniture.find((f) => f.index === meta.index);
@@ -1233,7 +1229,15 @@ export class SceneRoot {
         item.blocked_cells = meta.blocked_cells;
         if (meta.material !== undefined) item.material = meta.material;
         if (meta.material_label) item.material_label = meta.material_label;
+        if (meta.cx !== undefined) item.cx = meta.cx;
+        if (meta.cz !== undefined) item.cz = meta.cz;
+        if (meta.w !== undefined) item.width_m = meta.w;
+        if (meta.d !== undefined) item.depth_m = meta.d;
         if (meta.angle !== undefined) item.angle = meta.angle;
+        if (meta.x1 !== undefined) item.x1 = meta.x1;
+        if (meta.x2 !== undefined) item.x2 = meta.x2;
+        if (meta.y1 !== undefined) item.y1 = meta.y1;
+        if (meta.y2 !== undefined) item.y2 = meta.y2;
       });
     }
   }
@@ -1241,7 +1245,7 @@ export class SceneRoot {
   getLayoutPayload() {
     const round = (value) => Math.round(value * 1000) / 1000;
     return {
-      version: 2,
+      version: 3,
       room: {
         rows: this.room.rows,
         columns: this.room.cols,
@@ -1251,14 +1255,15 @@ export class SceneRoot {
       clearance_m: this.data.clearance_m ?? 0.1,
       ap: this.data.ap.label,
       start: this.data.start.label,
+      ap_height_m: this.data.ap?.height_m ?? 1.0,
       furniture: this.data.furniture.map((item) => ({
         name: item.name,
         material: item.material || '',
-        x1: round(item.x1),
-        y1: round(item.y1),
-        x2: round(item.x2),
-        y2: round(item.y2),
-        ...(item.angle ? { angle: item.angle } : {}),
+        cx: round(item.cx),
+        cy: round(item.cz),
+        w: round(item.width_m),
+        d: round(item.depth_m),
+        ...(item.angle ? { angle: round(item.angle) } : {}),
       })),
       manual_blocked: this.data.manual_blocked || [],
     };
@@ -1502,8 +1507,9 @@ export class SceneRoot {
   _buildAp(ap) {
     const x = ap.x_m - this.room.w / 2;
     const z = ap.y_m - this.room.d / 2;
+    const baseY = Math.max(0, (ap.height_m || 1.0) - 0.5);
     const root = new THREE.Group();
-    root.position.set(x, 0, z);
+    root.position.set(x, baseY, z);
     root.userData.ap = true;
     this.apGroup.add(root);
     this.apRoot = root;
@@ -1718,7 +1724,11 @@ export class SceneRoot {
     this.apTag = this._addTag(
       '路由器',
       '',
-      new THREE.Vector3(this.data.ap.x_m - this.room.w / 2, 1.2, this.data.ap.y_m - this.room.d / 2),
+      new THREE.Vector3(
+        this.data.ap.x_m - this.room.w / 2,
+        Math.max(0, (this.data.ap.height_m || 1.0) - 0.5) + 1.2,
+        this.data.ap.y_m - this.room.d / 2
+      ),
       'tag-ap'
     );
     this._labelsDirty = true;

@@ -834,6 +834,32 @@ body.hide-label-name.hide-label-loss .tag-furniture { display: none; }
   border-color: rgba(120, 190, 255, 0.8);
   background: rgba(24, 44, 70, 0.95);
 }
+.item-card-rotate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.item-card-rotate input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(120, 190, 255, 0.35);
+  background: rgba(16, 30, 48, 0.92);
+  color: #dce8f6;
+  font-variant-numeric: tabular-nums;
+}
+.item-card-rotate input:focus {
+  outline: none;
+  border-color: rgba(120, 190, 255, 0.8);
+}
 
 .edit-row {
   display: flex;
