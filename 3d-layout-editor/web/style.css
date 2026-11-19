@@ -145,6 +145,53 @@ button.primary {
 button.primary:hover { filter: brightness(1.08); }
 button.primary:active { transform: translateY(1px); }
 
+button.cta {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 9px;
+  border: 1px solid rgba(46, 204, 113, 0.8);
+  background: linear-gradient(135deg, #2ecc71, #1fa65c);
+  color: #04231a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(46, 204, 113, 0.25);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+button.cta:hover { filter: brightness(1.08); }
+button.cta:active { transform: translateY(1px); }
+
+.best-ap-wrap { position: relative; }
+.best-pop {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  z-index: 60;
+  width: 330px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(13, 22, 35, 0.98);
+  border: 1px solid rgba(46, 204, 113, 0.45);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.best-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.best-pop-head b { font-size: 13px; color: #2ecc71; }
+button.small { height: 22px; padding: 0 8px; font-size: 12px; }
+#bestApReasons { margin: 0; padding: 0 0 0 16px; }
+#bestApReasons li {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 5px 0;
+}
+#bestApReasons li::marker { color: #2ecc71; }
+
 button.danger {
   height: 34px;
   border-radius: 9px;

@@ -556,8 +556,11 @@ def best_ap_position(layout: Layout, band: str = DEFAULT_BAND) -> dict:
     if not candidates:
         candidates = list(layout.spec.all_cells())
 
+    current_stats = simulate_layout(layout, band)["stats"]
+
     best = None
     best_key = None
+    best_stats = None
     for cell in candidates:
         trial = Layout(
             spec=layout.spec,
@@ -571,6 +574,7 @@ def best_ap_position(layout: Layout, band: str = DEFAULT_BAND) -> dict:
         key = (stats["min_dbm"], stats["mean_dbm"])
         if best_key is None or key > best_key:
             best_key = key
+            best_stats = stats
             cx, cy = layout.spec.center(cell)
             best = {
                 "label": layout.spec.label(cell),
@@ -584,7 +588,48 @@ def best_ap_position(layout: Layout, band: str = DEFAULT_BAND) -> dict:
                 "strong_cells": stats["strong_cells"],
                 "quality_counts": stats["quality_counts"],
             }
+
+    best["reasons"] = _ap_reasons(layout, best, best_stats, current_stats)
     return best
+
+
+def _ap_reasons(layout: Layout, best: dict, best_stats: dict, current_stats: dict) -> list:
+    """生成推荐理由：位置均衡 + 覆盖改善 + 强覆盖格数。"""
+    reasons = []
+    spec = layout.spec
+    bx, by = spec.center((best["row"], best["column"]))
+    cx, cy = spec.width_m / 2, spec.height_m / 2
+    diag = (spec.width_m ** 2 + spec.height_m ** 2) ** 0.5
+    dist_center = ((bx - cx) ** 2 + (by - cy) ** 2) ** 0.5
+    ratio = dist_center / (diag / 2) if diag else 0
+    if ratio < 0.25:
+        reasons.append("位置靠近房间中心，到四边距离均衡，信号向四周扩散最均匀")
+    elif ratio < 0.5:
+        reasons.append("位置处于房间中部，兼顾各个方向的覆盖")
+    else:
+        reasons.append("该位置在可用格子中覆盖最均衡，兼顾强弱区域")
+
+    gain_min = best_stats["min_dbm"] - current_stats["min_dbm"]
+    gain_mean = best_stats["mean_dbm"] - current_stats["mean_dbm"]
+    if gain_min >= 0.5:
+        reasons.append(
+            f"最弱信号 {best_stats['min_dbm']} dBm，比当前位置（{current_stats['min_dbm']} dBm）提升 {gain_min:.1f} dB，减少死角"
+        )
+    else:
+        reasons.append(f"最弱信号 {best_stats['min_dbm']} dBm，是所有候选位置里最高的")
+
+    if gain_mean >= 0.5:
+        reasons.append(
+            f"平均信号 {best_stats['mean_dbm']} dBm，比当前提升 {gain_mean:.1f} dB，整体覆盖更强"
+        )
+    else:
+        reasons.append(f"平均信号 {best_stats['mean_dbm']} dBm，整体覆盖均衡")
+
+    if best_stats["strong_cells"] > current_stats["strong_cells"]:
+        reasons.append(
+            f"强覆盖 {best_stats['strong_cells']} 格，比当前多 {best_stats['strong_cells'] - current_stats['strong_cells']} 格"
+        )
+    return reasons
 
 
 def state_payload(layout: Layout, file_name: str = "") -> dict:

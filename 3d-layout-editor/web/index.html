@@ -37,6 +37,16 @@
       </div>
     </div>
     <div class="top-actions">
+      <div class="best-ap-wrap">
+        <button id="btnBestAp" class="cta" title="按当前家具摆放，计算覆盖最好的路由器位置">推荐 WiFi 位置</button>
+        <div id="bestApPop" class="best-pop hidden">
+          <div class="best-pop-head">
+            <b>为什么推荐这里</b>
+            <button id="bestApPopClose" class="ghost small" title="关闭">✕</button>
+          </div>
+          <ul id="bestApReasons"></ul>
+        </div>
+      </div>
       <label class="select-wrap">
         <span class="select-label">布局</span>
         <select id="layoutSelect" aria-label="选择布局文件"></select>
@@ -97,8 +107,6 @@
         <button id="btnBand5" class="ghost">5 GHz</button>
       </div>
       <p class="tip">穿透损耗按材料表取值</p>
-      <button id="btnBestAp" class="wide primary" title="按当前家具摆放，计算覆盖最好的路由器位置">推荐 WiFi 位置</button>
-      <p class="tip" id="bestApTip">按家具摆放找覆盖最均衡的路由器位置</p>
     </section>
 
     <section>
