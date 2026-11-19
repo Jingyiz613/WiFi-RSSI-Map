@@ -198,47 +198,47 @@ def ai_to_layout(parsed: dict) -> dict:
         width, depth = 8.0, 6.0
 
     furniture: list[dict] = []
+    boxes: list[dict] = []  # 已放置家具的轴对齐包围盒（用于防重叠）
     for raw in parsed.get("items") or []:
         name = " ".join(str(raw.get("name") or "").split())
         if not name:
             continue
         kind = _ai_kind(name)
-        w, d = FURNITURE_SIZE.get(kind, (0.6, 0.5))
-        # 方向：纵向时交换宽深（长边沿房间纵深）
+        w0, d0 = FURNITURE_SIZE.get(kind, (0.6, 0.5))
+        # 方向：纵向（angle=90）时占据矩形宽深互换
         orientation = str(raw.get("orientation") or "").strip().lower()
-        angle = 0
-        if "纵" in orientation or "竖" in orientation or "前后" in orientation:
-            w, d = d, w
-            angle = 90
+        angle = 90 if ("纵" in orientation or "竖" in orientation or "前后" in orientation) else 0
+        box_w, box_d = (d0, w0) if angle == 90 else (w0, d0)
         material = _ai_material(raw.get("material"))
-        x1, y1 = _place_rect(str(raw.get("position") or ""), w, d, width, depth)
+        x1, y1 = _place_rect(str(raw.get("position") or ""), box_w, box_d, width, depth)
 
         attempts = 0
         while attempts < 12:
-            rect = {"x1": x1, "y1": y1, "x2": round(x1 + w, 3), "y2": round(y1 + d, 3)}
-            if not any(_rect_overlaps(rect, f) for f in furniture):
+            rect = {"x1": x1, "y1": y1, "x2": round(x1 + box_w, 3), "y2": round(y1 + box_d, 3)}
+            if not any(_rect_overlaps(rect, b) for b in boxes):
                 break
             y1 = round(y1 + 0.25, 3)
-            if y1 + d > depth - 0.1:
+            if y1 + box_d > depth - 0.1:
                 y1 = 0.2
                 x1 = round(x1 + 0.3, 3)
             attempts += 1
 
         entry = {
             "name": name[:16],
-            "x1": round(x1, 3),
-            "y1": round(y1, 3),
-            "x2": round(x1 + w, 3),
-            "y2": round(y1 + d, 3),
+            "cx": round(x1 + box_w / 2, 3),
+            "cy": round(y1 + box_d / 2, 3),
+            "w": round(w0, 3),
+            "d": round(d0, 3),
         }
         if material:
             entry["material"] = material
         if angle:
             entry["angle"] = angle
         furniture.append(entry)
+        boxes.append(rect)
 
     return {
-        "version": 2,
+        "version": 3,
         "room": {
             "rows": 7,
             "columns": 9,
@@ -248,6 +248,7 @@ def ai_to_layout(parsed: dict) -> dict:
         "clearance_m": 0.1,
         "ap": "P48",
         "start": "P11",
+        "ap_height_m": 1.0,
         "furniture": furniture,
         "manual_blocked": [],
     }
@@ -339,13 +340,15 @@ def furniture_meta(layout: Layout) -> list[dict]:
                 "y1": round(item.y1, 4),
                 "x2": round(item.x2, 4),
                 "y2": round(item.y2, 4),
-                "cx": round((item.x1 + item.x2) / 2, 4),
-                "cz": round((item.y1 + item.y2) / 2, 4),
-                "width_m": round(item.width_m, 4),
-                "depth_m": round(item.height_m, 4),
+                "cx": round(item.cx, 4),
+                "cz": round(item.cy, 4),
+                "w": round(item.w, 4),
+                "d": round(item.d, 4),
+                "width_m": round(item.w, 4),
+                "depth_m": round(item.d, 4),
                 "area_m2": round(item.area_m2, 3),
                 "height_m": height,
-                "angle": item.angle,
+                "angle": round(item.angle, 2),
                 "blocked_cells": len(item.cells(spec, layout.clearance_m)),
             }
         )
@@ -382,6 +385,19 @@ def cells_meta(layout: Layout) -> list[dict]:
     return cells
 
 
+def _rotated_overlap(a, b) -> bool:
+    """两个旋转矩形是否重叠（分离轴定理，支持任意角度）。"""
+    for rect in (a, b):
+        ang = math.radians(rect.angle)
+        for axis in ((math.cos(ang), math.sin(ang)), (-math.sin(ang), math.cos(ang))):
+            corners = rect._corners()
+            vals_a = [x * axis[0] + y * axis[1] for x, y in corners]
+            vals_b = [x * axis[0] + y * axis[1] for x, y in b._corners()]
+            if max(vals_a) < min(vals_b) or max(vals_b) < min(vals_a):
+                return False
+    return True
+
+
 def overlap_problems(layout: Layout) -> list[str]:
     """原系统只校验 AP/起点与连通性，这里补一条家具重叠提示。"""
     items = layout.furniture
@@ -389,7 +405,7 @@ def overlap_problems(layout: Layout) -> list[str]:
     for i in range(len(items)):
         for j in range(i + 1, len(items)):
             a, b = items[i], items[j]
-            if a.x1 < b.x2 - 1e-6 and b.x1 < a.x2 - 1e-6 and a.y1 < b.y2 - 1e-6 and b.y1 < a.y2 - 1e-6:
+            if _rotated_overlap(a, b):
                 problems.append(f"家具「{a.name}」与「{b.name}」重叠")
     return problems[:4]
 
@@ -486,6 +502,21 @@ def _segment_hits_rect(x1, y1, x2, y2, xmin, ymin, xmax, ymax) -> bool:
     return u1 <= u2
 
 
+def _segment_hits_furniture(ax, ay, bx, by, item) -> bool:
+    """线段（AP 到测点）是否穿过旋转矩形的家具：变换到局部坐标后判相交。"""
+    a = -math.radians(item.angle)
+    ca, sa = math.cos(a), math.sin(a)
+    dx, dy = ax - item.cx, ay - item.cy
+    ax_l = dx * ca - dy * sa
+    ay_l = dx * sa + dy * ca
+    dx, dy = bx - item.cx, by - item.cy
+    bx_l = dx * ca - dy * sa
+    by_l = dx * sa + dy * ca
+    return _segment_hits_rect(
+        ax_l, ay_l, bx_l, by_l, -item.w / 2, -item.d / 2, item.w / 2, item.d / 2
+    )
+
+
 def _material_loss(item, kind: str, band: str, height_m: float) -> tuple[float, str]:
     """穿透损耗：用户指定材质优先，否则按家具类型推断。
 
@@ -512,13 +543,14 @@ def simulate_layout(layout: Layout, band: str = DEFAULT_BAND) -> dict:
     frequency_mhz = BANDS[band]["freq_mhz"]
     spec = layout.spec
     ap_x, ap_y = spec.center(layout.ap)
+    ap_h = max(0.1, float(getattr(layout, "ap_height_m", None) or AP_HEIGHT_M))
     points = []
 
     for cell in spec.all_cells():
         cx, cy = spec.center(cell)
         dx = cx - ap_x
         dy = cy - ap_y
-        distance = max(0.8, (dx * dx + dy * dy + (AP_HEIGHT_M - RX_HEIGHT_M) ** 2) ** 0.5)
+        distance = max(0.8, (dx * dx + dy * dy + (ap_h - RX_HEIGHT_M) ** 2) ** 0.5)
         fspl = 20.0 * math.log10(distance) + 20.0 * math.log10(frequency_mhz) - 27.55
 
         penetration = 0.0
@@ -528,7 +560,7 @@ def simulate_layout(layout: Layout, band: str = DEFAULT_BAND) -> dict:
             loss, material = _material_loss(item, kind, band, height)
             if loss <= 0:
                 continue
-            if _segment_hits_rect(ap_x, ap_y, cx, cy, item.x1, item.y1, item.x2, item.y2):
+            if _segment_hits_furniture(ap_x, ap_y, cx, cy, item):
                 penetration += loss
                 hit_materials.append(
                     {"label": MATERIALS[material]["label"], "db": round(loss, 1)}
@@ -573,7 +605,7 @@ def simulate_layout(layout: Layout, band: str = DEFAULT_BAND) -> dict:
             "frequency_mhz": frequency_mhz,
             "tx_eirp_dbm": TX_EIRP_DBM,
             "clutter_db": CLUTTER_DB,
-            "ap_height_m": AP_HEIGHT_M,
+            "ap_height_m": round(ap_h, 2),
             "rx_height_m": RX_HEIGHT_M,
             "thresholds_dbm": list(QUALITY_THRESHOLDS),
             "quality_labels": list(QUALITY_LABELS),
@@ -609,6 +641,7 @@ def best_ap_position(layout: Layout, band: str = DEFAULT_BAND) -> dict:
             furniture=list(layout.furniture),
             manual_blocked=set(layout.manual_blocked),
             clearance_m=layout.clearance_m,
+            ap_height_m=layout.ap_height_m,
         )
         stats = simulate_layout(trial, band)["stats"]
         key = (stats["min_dbm"], stats["mean_dbm"])
@@ -686,7 +719,7 @@ def state_payload(layout: Layout, file_name: str = "") -> dict:
 
     return {
         "file": file_name,
-        "layout_version": 2,
+        "layout_version": 3,
         "room": _room_payload(layout),
         "clearance_m": round(layout.clearance_m, 3),
         "ap": {
@@ -695,6 +728,7 @@ def state_payload(layout: Layout, file_name: str = "") -> dict:
             "column": layout.ap[1],
             "x_m": _cell_point(spec, layout.ap)[0],
             "y_m": _cell_point(spec, layout.ap)[1],
+            "height_m": round(layout.ap_height_m, 2),
         },
         "start": {
             "label": spec.label(layout.start),

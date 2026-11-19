@@ -359,7 +359,7 @@ async function recommendAp() {
     }
     const b = data.best;
     const snap = sceneRoot.snapshot();
-    snap.ap = { label: b.label, row: b.row, column: b.column, x_m: b.x_m, y_m: b.y_m };
+    snap.ap = { ...snap.ap, label: b.label, row: b.row, column: b.column, x_m: b.x_m, y_m: b.y_m };
     sceneRoot.restore(snap);
     await reanalyze();
     sceneRoot.showRecommend({ x_m: b.x_m, y_m: b.y_m });
@@ -489,6 +489,8 @@ function renderItemCard(item) {
   if (wEl) wEl.value = Math.round(item.width_m * 100);
   const dEl = $('itemCardD');
   if (dEl) dEl.value = Math.round(item.depth_m * 100);
+  const aEl = $('itemCardAngle');
+  if (aEl) aEl.value = Math.round(item.angle || 0);
   card.classList.remove('hidden');
   card.style.opacity = '0';
   card.style.pointerEvents = 'none';
@@ -550,16 +552,50 @@ async function applyFurnitureSize(width, depth) {
   toast(`「${target.name}」已调整为 ${Math.round(w * 100)}×${Math.round(d * 100)} cm`);
 }
 
-async function rotateSelected() {
+async function rotateBy(delta) {
   if (!selectedItem) return;
   const target = selectedItem;
   const before = sceneRoot.snapshot();
-  sceneRoot.rotateFurniture(target.index);
+  sceneRoot.rotateFurniture(target.index, delta);
   history.push(before);
   if (history.length > 50) history.shift();
   renderProperties(target);
+  renderItemCard(target);
   await reanalyze();
-  toast(`「${target.name}」已旋转 90°`);
+  toast(`「${target.name}」方向 ${Math.round(target.angle)}°`);
+}
+
+async function setSelectedAngle(value) {
+  if (!selectedItem) return;
+  const target = selectedItem;
+  const angle = ((Math.round(Number(value) || 0) % 360) + 360) % 360;
+  const before = sceneRoot.snapshot();
+  sceneRoot.rotateFurniture(target.index, angle - (target.angle || 0));
+  history.push(before);
+  if (history.length > 50) history.shift();
+  renderProperties(target);
+  renderItemCard(target);
+  await reanalyze();
+}
+
+async function setApHeight(height) {
+  const ap = sceneRoot.data.ap;
+  if (!ap) return;
+  const before = sceneRoot.snapshot();
+  sceneRoot.setApHeight(height);
+  history.push(before);
+  if (history.length > 50) history.shift();
+  updateApHeightButtons(height);
+  await reanalyze();
+  toast(`路由器高度：${height.toFixed(1)} m`);
+}
+
+function updateApHeightButtons(height) {
+  const map = { 0.5: 'btnApFloor', 1.0: 'btnApDesk', 1.8: 'btnApWall' };
+  Object.entries(map).forEach(([h, id]) => {
+    const btn = $(id);
+    if (btn) btn.classList.toggle('active', Number(h) === height);
+  });
 }
 
 function syncRoomInputs() {
@@ -904,9 +940,14 @@ function bindUi() {
   $('bestApPopClose')?.addEventListener('click', hideBestApReasons);
   $('btnRoomApply')?.addEventListener('click', applyRoomSize);
   $('itemCardMaterial')?.addEventListener('change', (event) => applyFurnitureMaterial(event.target.value));
-  $('itemCardRotate')?.addEventListener('click', rotateSelected);
+  $('itemCardRotateL')?.addEventListener('click', () => rotateBy(15));
+  $('itemCardRotateR')?.addEventListener('click', () => rotateBy(-15));
+  $('itemCardAngle')?.addEventListener('change', () => setSelectedAngle($('itemCardAngle').value));
   $('itemCardW')?.addEventListener('change', () => applyFurnitureSize(Number($('itemCardW').value), Number($('itemCardD').value)));
   $('itemCardD')?.addEventListener('change', () => applyFurnitureSize(Number($('itemCardW').value), Number($('itemCardD').value)));
+  $('btnApFloor')?.addEventListener('click', () => setApHeight(0.5));
+  $('btnApDesk')?.addEventListener('click', () => setApHeight(1.0));
+  $('btnApWall')?.addEventListener('click', () => setApHeight(1.8));
   $('btnPresent').addEventListener('click', () => togglePresent());
   $('btnAIEmpty')?.addEventListener('click', () => setAIMode('environment', 'empty'));
   $('btnAIFurnished')?.addEventListener('click', () => setAIMode('environment', 'furnished'));

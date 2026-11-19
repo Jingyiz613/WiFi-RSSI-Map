@@ -30,8 +30,13 @@
       <span>材质</span>
       <select id="itemCardMaterial" aria-label="选中家具材质"></select>
     </label>
+    <div class="item-card-row item-card-rotate">
+      <span>方向</span>
+      <input id="itemCardAngle" type="number" min="0" max="359" step="15" /> °
+    </div>
     <div class="item-card-row item-card-actions">
-      <button id="itemCardRotate" type="button" title="顺时针旋转 90°">↻ 旋转 90°</button>
+      <button id="itemCardRotateL" type="button" title="逆时针 15°">↺ 左转</button>
+      <button id="itemCardRotateR" type="button" title="顺时针 15°">↻ 右转</button>
     </div>
   </div>
 
@@ -114,6 +119,16 @@
         <button id="btnBand5" class="ghost">5 GHz</button>
       </div>
       <p class="tip">穿透损耗按材料表取值</p>
+    </section>
+
+    <section id="apHeightSection">
+      <h2>路由器高度</h2>
+      <div class="edit-row">
+        <button id="btnApFloor" class="ghost" data-h="0.5">落地</button>
+        <button id="btnApDesk" class="ghost active" data-h="1.0">桌面</button>
+        <button id="btnApWall" class="ghost" data-h="1.8">壁挂</button>
+      </div>
+      <p class="tip">路由器放在地上、桌上还是高处，影响信号穿墙路径</p>
     </section>
 
     <section>
